@@ -4,12 +4,20 @@ const sdk = require('microsoft-cognitiveservices-speech-sdk');
 const blendShapeNames = require('./blendshapeNames');
 const _ = require('lodash');
 
-let SSML = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US">
-<voice name="en-US-JennyNeural">
-  <mstts:viseme type="FacialExpression"/>
-  __TEXT__
-</voice>
-</speak>`;
+// let SSML = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US">
+// <voice name="en-US-JennyNeural">
+//   <mstts:viseme type="FacialExpression"/>
+//   __TEXT__
+// </voice>
+// </speak>`;
+
+let SSML = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="hi-IN">
+  <voice name="hi-IN-SwaraNeural">
+    <mstts:viseme type="FacialExpression"/>
+    __TEXT__
+  </voice>
+</speak>`
+
 
 const key = process.env.AZURE_KEY;
 const region = process.env.AZURE_REGION;
