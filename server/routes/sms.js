@@ -2,67 +2,55 @@ const express = require("express");
 const cron = require("node-cron");
 const twilio = require("twilio");
 const dotenv = require("dotenv");
+const axios = require("axios"); // You'll need to install axios
 
 dotenv.config();
 const router = express.Router();
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-const client = twilio(accountSid, authToken, {accountSid});
+const FORWARD_URL = "http://13.61.248.141:5000";
 
-const reminders = []; // Stores scheduled reminders
-
-// Function to schedule an SMS reminder
-function scheduleReminder(time, phoneNumber, message) {
-    const [hour, minute] = time.split(":");
-
-    const cronExpression = `${minute} ${hour} * * *`; // Daily at specified time
-
-    const task = cron.schedule(cronExpression, () => {
-        client.messages.create({
-            body: message,
-            from: fromNumber,
-            to: phoneNumber
-        })
-        .then(msg => console.log(`Reminder sent: ${msg.sid}`))
-        .catch(err => console.error("Error sending SMS:", err));
-    });
-
-    return task;
-}
-
-// API to add a new reminder
-router.post("/add", (req, res) => {
+// Modified add reminder route
+router.post("/add", async (req, res) => {
     const { time, phoneNumber, message } = req.body;
 
     if (!time || !phoneNumber || !message) {
-        return res.status(400).json({ error: "All fields (time, phoneNumber, message) are required" });
+        return res
+            .status(400)
+            .json({ error: "All fields (time, phoneNumber, message) are required" });
     }
 
-    const task = scheduleReminder(time, phoneNumber, message);
-    reminders.push({ time, phoneNumber, message, task });
-
-    res.json({ success: true, message: "Reminder scheduled successfully" });
+    // Forward the request
+    try {
+        const response = await axios.post(`${FORWARD_URL}/sms/add`, req.body);
+        res.json(response.data);
+    } catch (error) {
+        console.error("Error forwarding to remote server:", error);
+        res.status(500).json({ error: "Failed to forward request" });
+    }
 });
 
-// API to list all reminders
-router.get("/list", (req, res) => {
-    res.json(reminders.map(r => ({ time: r.time, phoneNumber: r.phoneNumber, message: r.message })));
+// Modified list reminders route
+router.get("/list", async (req, res) => {
+    try {
+        const response = await axios.get(`${FORWARD_URL}/sms/list`);
+        res.json(response.data);
+    } catch (error) {
+        console.error("Error forwarding to remote server:", error);
+        res.status(500).json({ error: "Failed to forward request" });
+    }
 });
 
-// API to delete a reminder
-router.post("/delete", (req, res) => {
+// Modified delete reminder route
+router.post("/delete", async (req, res) => {
     const { time, phoneNumber } = req.body;
 
-    const index = reminders.findIndex(r => r.time === time && r.phoneNumber === phoneNumber);
-    if (index === -1) {
-        return res.status(404).json({ error: "Reminder not found" });
+    try {
+        const response = await axios.post(`${FORWARD_URL}/sms/delete`, req.body);
+        res.json(response.data);
+    } catch (error) {
+        console.error("Error forwarding to remote server:", error);
+        res.status(500).json({ error: "Failed to forward request" });
     }
-
-    reminders[index].task.stop();
-    reminders.splice(index, 1);
-    res.json({ success: true, message: "Reminder deleted successfully" });
 });
 
-module.exports = router;
+module.exports = router
