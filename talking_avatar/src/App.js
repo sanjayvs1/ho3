@@ -19,6 +19,20 @@ import * as THREE from "three";
 import axios from "axios";
 import { db } from "./utils/firebaseConfig"; // Adjust path to your firebase.js
 import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  FaShoppingBag,
+  FaRunning,
+  FaUsers,
+  FaPaperPlane,
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaCamera,
+  FaTimes,
+  FaUser,
+  FaSignOutAlt
+} from 'react-icons/fa';
+
 const _ = require("lodash");
 
 const host = process.env.REACT_APP_API;
