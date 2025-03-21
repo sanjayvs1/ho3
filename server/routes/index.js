@@ -12,6 +12,7 @@ const { Groq } = require("groq-sdk");
 
 
 const chatHistory = [];
+const responseCache = new Map(); // Cache for Groq responses
 
 /* GET home page. */
 router.post("/talk", function (req, res, next) {
@@ -57,11 +58,23 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
   }
 });
 
-// Function to get Groq response
+// Function to get Groq response with caching
 async function getGroqResponse(prompt) {
+  // Check cache first
+  if (responseCache.has(prompt)) {
+    return responseCache.get(prompt);
+  }
+
   const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY
   });
+
+  const systemPrompt = `\nYou are an Female AI assistant aimed at helping out the elderly. Reply in short and concise answers.`; 
+
+  // Initialize chat history with system prompt if empty
+  if (chatHistory.length === 0) {
+    chatHistory.push({ role: "system", content: systemPrompt });
+  }
 
   chatHistory.push({ role: "user", content: prompt });
   if (chatHistory.length > 10) {
@@ -69,14 +82,16 @@ async function getGroqResponse(prompt) {
   }
   try {
     const chatCompletion = await groq.chat.completions.create({
-      // messages: [{ role: "user", content: prompt }],
       messages: chatHistory,
       model: "gemma2-9b-it",
       temperature: 0.7,
       max_tokens: 1024,
     });
 
-    return chatCompletion.choices[0]?.message?.content || "No response generated";
+    const response = chatCompletion.choices[0]?.message?.content || "No response generated";
+    // Cache the response
+    responseCache.set(prompt, response);
+    return response;
   } catch (error) {
     console.error("Error getting Groq response:", error);
     throw error;
@@ -103,11 +118,10 @@ router.post("/chat", async (req, res) => {
   const transcript = req.body.transcript;
 
   try {
-    
-    // Step 2: Get Groq response
+    // First get the Groq response
     const groqResponse = await getGroqResponse(transcript);
     
-    // Step 3: Convert Groq response to speech
+    // Then convert to speech
     const audioResult = await textToSpeech(groqResponse);
     
     return res.json({ 

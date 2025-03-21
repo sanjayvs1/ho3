@@ -8,11 +8,12 @@ const PrescriptionModel = require('../src/models/prescriptionSchema');
 const s3Service = require('../src/services/s3Service');
 const textractService = require('../src/services/textractService');
 const groqService = require('../src/services/groqService');
-const { transformPrescriptionData } = require('../src/utils/dataTransformer');
+const firebaseService = require('../src/services/firebaseService');
+const dataTransformer = require('../src/utils/dataTransformer');
 
-// Configure multer for file uploads
+// Configure multer for file uploads with memory storage
 const upload = multer({
-    dest: 'uploads/',
+    storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
     fileFilter: (req, file, cb) => {
         const allowedTypes = ['.jpg', '.jpeg', '.png', '.pdf'];
@@ -26,55 +27,8 @@ const upload = multer({
     }
 });
 
-// Upload prescription and process it
-router.post('/upload', upload.single('prescription'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-
-        // 1. Upload file to S3
-        const fileKey = await s3Service.uploadToS3(req.file);
-        
-        // 2. Extract text using AWS Textract
-        const params = s3Service.getS3Params(fileKey);
-        const extractedText = await textractService.extractText(params);
-        
-        // 3. Parse prescription using Groq API
-        const parsedData = await groqService.parsePrescription(extractedText);
-        
-        // 4. Transform data to match Mongoose schema
-        const transformedData = transformPrescriptionData(parsedData);
-        
-        // 5. Store data in MongoDB
-        const prescription = new PrescriptionModel({
-            ...transformedData,
-            s3FileKey: fileKey,
-            extractedText
-        });
-        
-        await prescription.save();
-        
-        // 6. Clean up temporary file
-        fs.unlink(req.file.path, (err) => {
-            if (err) console.error("Failed to delete temp file:", err);
-        });
-        
-        // 7. Return success response with parsed data
-        res.status(200).json({
-            message: 'Prescription uploaded and processed successfully',
-            prescriptionId: prescription._id,
-            data: transformedData
-        });
-        
-    } catch (error) {
-        console.error("Error processing prescription:", error);
-        res.status(500).json({ error: error.message || 'Failed to process prescription' });
-    }
-});
-
 // Upload prescription image
-router.post('/api/upload', upload.single('prescription'), async (req, res) => {
+router.post('/upload', upload.single('prescription'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
