@@ -18,20 +18,7 @@ import blinkData from "./blendDataBlink.json";
 import * as THREE from "three";
 import axios from "axios";
 import { db } from "./utils/firebaseConfig"; // Adjust path to your firebase.js
-import { collection, addDoc } from "firebase/firestore";
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  FaShoppingBag,
-  FaRunning,
-  FaUsers,
-  FaPaperPlane,
-  FaMicrophone,
-  FaMicrophoneSlash,
-  FaCamera,
-  FaTimes,
-  FaUser,
-  FaSignOutAlt
-} from 'react-icons/fa';
+import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
 const _ = require("lodash");
 
 const host = process.env.REACT_APP_API;
@@ -446,48 +433,8 @@ function App() {
       );
       const prescriptionDataRaw = ocrResponse.data;
 
-      const ocrText = JSON.stringify(prescriptionDataRaw);
-      const prompt = `
-        Parse the following OCR text from a prescription into a structured JSON object. Extract meaningful details such as medicine names, dosages, times (in AM/PM format), frequencies, priorities (High, Medium, Low), doctor details (name, contact, specialty), patient details (name, age), date, and any additional notes. Return the result in this schema:
-        {
-          "prescription": {
-            "medicines": [
-              {
-                "name": "string",
-                "dosage": "string",
-                "time": "string",
-                "frequency": "string",
-                "priority": "string"
-              }
-            ],
-            "doctor": {
-              "name": "string",
-              "contact": "string",
-              "specialty": "string"
-            },
-            "patient": {
-              "name": "string",
-              "age": "number"
-            },
-            "date": "string",
-            "notes": "string"
-          }
-        }
-        Here's the OCR text to parse:
-        ${ocrText}
-        In case time is not clear, add a "midday / noon" reminder alternatively. Do not add any extra text outside the object.
-      `;
-
-      const groqResponse = await axios.post(`${host}/groq`, { prompt });
-      const { response: parsedPrescription } = groqResponse.data;
-      const cleanedJson = parsedPrescription
-        .replace(/^\s*```json\s*\n?/, "")
-        .replace(/\s*```\s*$/, "")
-        .trim();
-
-      if (!cleanedJson) throw new Error("No parsed data from Groq");
-
-      const parsedData = JSON.parse(cleanedJson);
+      const parsedData = prescriptionDataRaw;
+      console.log(parsedData);
       setPrescriptionData(parsedData);
       setEditedPrescription(JSON.parse(JSON.stringify(parsedData))); // Deep copy
       setModalOpen(true);
@@ -513,20 +460,21 @@ function App() {
 
   const saveToFirebase = async () => {
     try {
-      const uid = localStorage.getItem("uid");
-      if (!uid) throw new Error("User not logged in (UID missing)");
+      // Update the prescription using the API route
+      const response = await axios.put(
+        `${host}/ocr/prescriptions/${prescriptionData.id}`,
+        editedPrescription
+      );
 
-      const docRef = await addDoc(collection(db, "prescriptions-parsed"), {
-        uid,
-        prescription: editedPrescription,
-        timestamp: new Date().toISOString(),
-      });
-
-      addMessage(`Prescription saved with ID: ${docRef.id}`, false);
-      setModalOpen(false);
+      if (response.status === 200) {
+        addMessage(`Prescription updated successfully`, false);
+        setModalOpen(false);
+      } else {
+        throw new Error("Failed to update prescription");
+      }
     } catch (error) {
-      console.error("Firebase save error:", error);
-      addMessage(`Error saving to Firebase: ${error.message}`, false);
+      console.error("Prescription update error:", error);
+      addMessage(`Error saving prescription: ${error.message}`, false);
     }
   };
 
@@ -746,7 +694,7 @@ function App() {
         />
       </div>
 
-      {/* Custom Modal */}
+      {/* Updated Modal */}
       {modalOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -760,20 +708,220 @@ function App() {
             {editedPrescription && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold">Medicines</h3>
-                  {editedPrescription.prescription.medicines.map(
-                    (med, index) => (
+                  <h3 className="text-lg font-semibold">Doctor Information</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm font-medium">Name</label>
+                      <input
+                        type="text"
+                        value={editedPrescription.doctorInfo.name}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "name"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Qualifications
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.doctorInfo.qualifications.join(
+                          ", "
+                        )}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "qualifications"],
+                            e.target.value.split(", ")
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.doctorInfo.address}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "address"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Contact Info
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.doctorInfo.contactInfo}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "contactInfo"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Registration Number
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.doctorInfo.registrationNumber}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "registrationNumber"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold">Hospital Details</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm font-medium">Name</label>
+                      <input
+                        type="text"
+                        value={
+                          editedPrescription.doctorInfo.hospitalDetails.name
+                        }
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "hospitalDetails", "name"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          editedPrescription.doctorInfo.hospitalDetails.address
+                        }
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "hospitalDetails", "address"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Contact Info
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          editedPrescription.doctorInfo.hospitalDetails
+                            .contactInfo
+                        }
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["doctorInfo", "hospitalDetails", "contactInfo"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold">Patient Information</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm font-medium">Name</label>
+                      <input
+                        type="text"
+                        value={editedPrescription.patientInfo.name}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["patientInfo", "name"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">Age</label>
+                      <input
+                        type="number"
+                        value={editedPrescription.patientInfo.age}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["patientInfo", "age"],
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Gender
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.patientInfo.gender || ""}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["patientInfo", "gender"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold">Treatment Details</h3>
+                  {editedPrescription.patientInfo.treatmentDetails.map(
+                    (treatment, index) => (
                       <div key={index} className="space-y-2 mb-4">
                         <div>
                           <label className="block text-sm font-medium">
-                            Name
+                            Medication
                           </label>
                           <input
                             type="text"
-                            value={med.name}
+                            value={treatment.medication}
                             onChange={(e) =>
                               handleFieldChange(
-                                ["prescription", "medicines", index, "name"],
+                                [
+                                  "patientInfo",
+                                  "treatmentDetails",
+                                  index,
+                                  "medication",
+                                ],
                                 e.target.value
                               )
                             }
@@ -786,46 +934,14 @@ function App() {
                           </label>
                           <input
                             type="text"
-                            value={med.dosage}
-                            onChange={(e) =>
-                              handleFieldChange(
-                                ["prescription", "medicines", index, "dosage"],
-                                e.target.value
-                              )
-                            }
-                            className="w-full p-2 border rounded"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium">
-                            Time (e.g., 8:00 AM)
-                          </label>
-                          <input
-                            type="text"
-                            value={med.time}
-                            onChange={(e) =>
-                              handleFieldChange(
-                                ["prescription", "medicines", index, "time"],
-                                e.target.value
-                              )
-                            }
-                            className="w-full p-2 border rounded"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium">
-                            Frequency
-                          </label>
-                          <input
-                            type="text"
-                            value={med.frequency}
+                            value={treatment.dosage}
                             onChange={(e) =>
                               handleFieldChange(
                                 [
-                                  "prescription",
-                                  "medicines",
+                                  "patientInfo",
+                                  "treatmentDetails",
                                   index,
-                                  "frequency",
+                                  "dosage",
                                 ],
                                 e.target.value
                               )
@@ -835,18 +951,18 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium">
-                            Priority
+                            Timing
                           </label>
                           <input
                             type="text"
-                            value={med.priority}
+                            value={treatment.timing}
                             onChange={(e) =>
                               handleFieldChange(
                                 [
-                                  "prescription",
-                                  "medicines",
+                                  "patientInfo",
+                                  "treatmentDetails",
                                   index,
-                                  "priority",
+                                  "timing",
                                 ],
                                 e.target.value
                               )
@@ -858,116 +974,19 @@ function App() {
                     )
                   )}
                 </div>
+
                 <div>
-                  <h3 className="text-lg font-semibold">Doctor</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-sm font-medium">Name</label>
-                      <input
-                        type="text"
-                        value={editedPrescription.prescription.doctor.name}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            ["prescription", "doctor", "name"],
-                            e.target.value
-                          )
-                        }
-                        className="w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium">
-                        Contact
-                      </label>
-                      <input
-                        type="text"
-                        value={editedPrescription.prescription.doctor.contact}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            ["prescription", "doctor", "contact"],
-                            e.target.value
-                          )
-                        }
-                        className="w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium">
-                        Specialty
-                      </label>
-                      <input
-                        type="text"
-                        value={editedPrescription.prescription.doctor.specialty}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            ["prescription", "doctor", "specialty"],
-                            e.target.value
-                          )
-                        }
-                        className="w-full p-2 border rounded"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Patient</h3>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-sm font-medium">Name</label>
-                      <input
-                        type="text"
-                        value={editedPrescription.prescription.patient.name}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            ["prescription", "patient", "name"],
-                            e.target.value
-                          )
-                        }
-                        className="w-full p-2 border rounded"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium">Age</label>
-                      <input
-                        type="number"
-                        value={editedPrescription.prescription.patient.age}
-                        onChange={(e) =>
-                          handleFieldChange(
-                            ["prescription", "patient", "age"],
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full p-2 border rounded"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Date</label>
+                  <h3 className="text-lg font-semibold">Diagnosis</h3>
                   <input
                     type="text"
-                    value={editedPrescription.prescription.date}
+                    value={editedPrescription.patientInfo.diagnosis.join(", ")}
                     onChange={(e) =>
                       handleFieldChange(
-                        ["prescription", "date"],
-                        e.target.value
+                        ["patientInfo", "diagnosis"],
+                        e.target.value.split(", ")
                       )
                     }
                     className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium">Notes</label>
-                  <textarea
-                    value={editedPrescription.prescription.notes}
-                    onChange={(e) =>
-                      handleFieldChange(
-                        ["prescription", "notes"],
-                        e.target.value
-                      )
-                    }
-                    className="w-full p-2 border rounded resize-y"
-                    rows="3"
                   />
                 </div>
               </div>

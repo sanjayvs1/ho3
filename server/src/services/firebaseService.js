@@ -1,6 +1,6 @@
 // src/services/firebaseService.js
 const { db } = require('./firebase');
-const { collection, addDoc, getDocs, doc, getDoc } = require('firebase/firestore');
+const { collection, addDoc, getDocs, doc, getDoc, updateDoc } = require('firebase/firestore');
 
 async function savePrescription(data) {
   try {
@@ -50,8 +50,23 @@ async function getPrescriptionById(id) {
   }
 }
 
+async function updatePrescription(id, updateData) {
+  try {
+    const docRef = doc(db, 'prescriptions', id);
+    await updateDoc(docRef, {
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    });
+    return true;
+  } catch (error) {
+    console.error('Error updating prescription:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   savePrescription,
   getAllPrescriptions,
-  getPrescriptionById
+  getPrescriptionById,
+  updatePrescription
 };

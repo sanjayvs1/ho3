@@ -79,6 +79,28 @@ router.post("/upload", upload.single("prescription"), async (req, res) => {
   }
 });
 
+// Update prescription data
+router.put("/prescriptions/:id", async (req, res) => {
+  try {
+    const prescriptionId = req.params.id;
+    const updateData = req.body;
+
+    if (!prescriptionId || !updateData) {
+      return res.status(400).json({ error: "Missing prescription ID or update data" });
+    }
+
+    await firebaseService.updatePrescription(prescriptionId, updateData);
+    
+    res.status(200).json({
+      message: "Prescription updated successfully",
+      prescriptionId: prescriptionId
+    });
+  } catch (error) {
+    console.error("Error updating prescription:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get prescription by ID
 router.get("/prescriptions/:id", async (req, res) => {
   try {
