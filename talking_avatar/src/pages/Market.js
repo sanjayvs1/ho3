@@ -7,21 +7,156 @@ import { FaShoppingCart, FaPlus, FaMinus, FaSearch, FaTimes } from 'react-icons/
 function DailyNeeds() {
     // Static list of 13 daily need items with sections, Indian Rupees, and updated images
     const initialProducts = [
-        { uid: 1, name: "Bread", price: 40, rating: 4.5, image: "https://images.pexels.com/photos/5945738/pexels-photo-5945738.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Bakery" },
-        { uid: 2, name: "Milk", price: 60, rating: 4.8, image: "https://images.pexels.com/photos/533329/pexels-photo-533329.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Dairy" },
-        { uid: 3, name: "Eggs (6 pcs)", price: 70, rating: 4.3, image: "https://images.pexels.com/photos/162712/egg-white-food-protein-162712.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Dairy" },
-        { uid: 4, name: "Apples (1 kg)", price: 150, rating: 4.6, image: "https://images.pexels.com/photos/209339/pexels-photo-209339.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Fruits & Vegetables" },
-        { uid: 5, name: "Bananas (6 pcs)", price: 50, rating: 4.4, image: "https://images.pexels.com/photos/2872755/pexels-photo-2872755.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Fruits & Vegetables" },
-        { uid: 6, name: "Cheese (200g)", price: 200, rating: 4.7, image: "https://images.pexels.com/photos/773253/pexels-photo-773253.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Dairy" },
-        { uid: 7, name: "Butter (100g)", price: 80, rating: 4.2, image: "https://images.pexels.com/photos/5115909/pexels-photo-5115909.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Dairy" },
-        { uid: 8, name: "Rice (1 kg)", price: 60, rating: 4.5, image: "https://images.pexels.com/photos/4117592/pexels-photo-4117592.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Bakery" },
-        { uid: 9, name: "Pasta (500g)", price: 90, rating: 4.3, image: "https://images.pexels.com/photos/12773632/pexels-photo-12773632.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Bakery" },
-        { uid: 10, name: "Tomatoes (1 kg)", price: 40, rating: 4.6, image: "https://images.pexels.com/photos/533280/pexels-photo-533280.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Fruits & Vegetables" },
-        { uid: 11, name: "Potatoes (1 kg)", price: 30, rating: 4.4, image: "https://images.pexels.com/photos/144248/potatoes-vegetables-erdfrucht-144248.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Fruits & Vegetables" },
-        { uid: 12, name: "Chicken (1 kg)", price: 250, rating: 4.8, image: "https://images.pexels.com/photos/616354/pexels-photo-616354.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Meat & Fish" },
-        { uid: 13, name: "Fish (1 kg)", price: 350, rating: 4.7, image: "https://images.pexels.com/photos/3298637/pexels-photo-3298637.jpeg?auto=compress&cs=tinysrgb&w=300", section: "Meat & Fish" },
-    ];
+        // Medical Items (Emergency Needs)
+        {
+            uid: 1,
+            name: "Bandages (10 pcs)",
+            price: 150,
+            rating: 4.6,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTsWFkK-qfy9L5e0TvH2OkpjqZH2E81CA3y3Q&s",
+            section: "Medical"
+        },
+        {
+            uid: 2,
+            name: "Painkillers (10 tablets)",
+            price: 50,
+            rating: 4.5,
+            image: "https://images.pexels.com/photos/208512/pexels-photo-208512.jpeg?auto=compress&cs=tinysrgb&w=300",
+            section: "Medical"
+        },
+        {
+            uid: 3,
+            name: "Antiseptic Liquid (100ml)",
+            price: 120,
+            rating: 4.7,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQp_LwGt5ZzRqFXihCcK8wpD6jf6flwLLNaWQ&s",
+            section: "Medical"
+        },
+        {
+            uid: 4,
+            name: "Thermometer",
+            price: 300,
+            rating: 4.8,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQOYq6pD-11NskH6tqgY-epMID8wkzRPJ0Nqw&s",
+            section: "Medical"
+        },
+        {
+            uid: 5,
+            name: "Cotton Balls (50 pcs)",
+            price: 80,
+            rating: 4.4,
+            image: "https://m.media-amazon.com/images/I/515BOxhi8TL.jpg",
+            section: "Medical"
+        },
+        {
+            uid: 6,
+            name: "Face Mask (5 pcs)",
+            price: 100,
+            rating: 4.6,
+            image: "https://images.pexels.com/photos/3873193/pexels-photo-3873193.jpeg?auto=compress&cs=tinysrgb&w=300",
+            section: "Medical"
+        },
 
+        // Daily Need Items (Emergency Essentials)
+        {
+            uid: 7,
+            name: "Adult Diapers",
+            price: 30,
+            rating: 4.5,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiXb3hjisihMLosX723WNFtVcJz5kKK_BboA&s",
+            section: "Daily Needs"
+        },
+        {
+            uid: 8,
+            name: "Toothpaste",
+            price: 60,
+            rating: 4.6,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPtT6uTdKX_JE-uXaTBeCUDfdfUaHvQRThOgQt5xuvhy3InMrSwPjseb64TOLbb7bVKaM&usqp=CAU",
+            section: "Daily Needs"
+        },
+        {
+            uid: 9,
+            name: "Toothbrush",
+            price: 200,
+            rating: 4.7,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQop0AEhoDug6rgs7YwEElQyLAE0UolhCARCrlT_6efnywz6cHrpUCI2_nKSgq1XzV1IUY&usqp=CAU",
+            section: "Daily Needs"
+        },
+        {
+            uid: 10,
+            name: "Adult wet wiper",
+            price: 40,
+            rating: 4.4,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMviTb7O3maDVvq1B3qr8XH8k6MKE2GgdZWA&s",
+            section: "Daily Needs"
+        },
+        {
+            uid: 11,
+            name: "Hand Sanitizer",
+            price: 80,
+            rating: 4.5,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR3FDLbCKsoau2qIvhz0golOVDCKKfiT_thSg&s",
+            section: "Daily Needs"
+        },
+        {
+            uid: 12,
+            name: "Mosturizer",
+            price: 50,
+            rating: 4.3,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTW2OVyQWlmP8tKwQXmUkq28CxTAdTwZ2ysZw&s",
+            section: "Daily Needs"
+        },
+
+        // Food Items (Emergency Staples)
+        {
+            uid: 13,
+            name: "Bread",
+            price: 40,
+            rating: 4.5,
+            image: "https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=300",
+            section: "Food"
+        },
+        {
+            uid: 14,
+            name: "Curd",
+            price: 60,
+            rating: 4.8,
+            image: "https://static.ticimax.cloud/12549/uploads/urunresimleri/buyuk/peypa-gourmet-suzme-yogurt-500-gr-61ca.jpg",
+            section: "Food"
+        },
+        {
+            uid: 15,
+            name: "Rice",
+            price: 60,
+            rating: 4.5,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4Sdt37Fx2-wB-KD0DetH1u2uFZ0s-Q89CUQ&s",
+            section: "Food"
+        },
+        {
+            uid: 16,
+            name: "Eggs",
+            price: 70,
+            rating: 4.3,
+            image: "https://images.pexels.com/photos/162712/egg-white-food-protein-162712.jpeg?auto=compress&cs=tinysrgb&w=300",
+            section: "Food"
+        },
+        {
+            uid: 17,
+            name: "Apples",
+            price: 30,
+            rating: 4.4,
+            image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0CPJrRlkE17l2fTKihMv-wHjmNLfBnnHbFg&s",
+            section: "Food"
+        },
+        {
+            uid: 18,
+            name: "Cooking Oil",
+            price: 80,
+            rating: 4.2,
+            image: "https://hips.hearstapps.com/hmg-prod/images/gettyimages-1206682746.jpg?crop=0.6669811320754717xw:1xh;center,top&resize=640:*",
+            section: "Food"
+        },
+    ];
     const [products] = useState(initialProducts);
     const [cart, setCart] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -168,14 +303,14 @@ function DailyNeeds() {
         <div className="p-6 bg-[#F5F5F5] min-h-screen">
             {/* Header with Title and Cart */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-4xl font-bold text-[#5D4037]">Daily Needs</h1>
+                <h1 className="text-4xl font-bold text-[#5D4037]">Emergency Needs</h1>
                 <button
                     onClick={() => setIsCartOpen(true)}
                     className="bg-[#B2DFDB] hover:bg-[#80CBC4] text-[#00695C] text-xl font-semibold py-3 px-6 rounded-full shadow-lg flex items-center gap-3"
                     disabled={isLoading}
                 >
                     <FaShoppingCart />
-                    <span>Cart ({calculateTotalQuantity()})</span>
+                
                     <span>₹{calculateTotal()}</span>
                 </button>
             </div>
@@ -219,7 +354,7 @@ function DailyNeeds() {
                                             className="w-full py-2 text-xl font-semibold rounded-lg bg-[#C8E6C9] hover:bg-[#A5D6A7] text-[#388E3C] shadow-md flex items-center justify-center gap-2"
                                             disabled={isLoading}
                                         >
-                                            <FaShoppingCart /> Add to Cart
+                                            <FaShoppingCart /> Buy
                                         </button>
                                     </div>
                                 </div>
