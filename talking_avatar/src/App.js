@@ -17,11 +17,12 @@ import createAnimation from "./converter";
 import blinkData from "./blendDataBlink.json";
 import * as THREE from "three";
 import axios from "axios";
+import { db } from "./utils/firebaseConfig"; // Adjust path to your firebase.js
+import { collection, addDoc } from "firebase/firestore";
 const _ = require("lodash");
 
 const host = process.env.REACT_APP_API;
 
-// Avatar component (unchanged)
 function Avatar({
   avatar_url,
   speak,
@@ -258,6 +259,7 @@ function makeSpeech(text) {
 function App() {
   const audioPlayer = useRef();
   const chatAreaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [speak, setSpeak] = useState(false);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
@@ -266,6 +268,9 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [prescriptionData, setPrescriptionData] = useState(null);
+  const [editedPrescription, setEditedPrescription] = useState(null);
 
   useEffect(() => {
     if (chatAreaRef.current) {
@@ -301,7 +306,7 @@ function App() {
     }
   };
 
-  const handleSpeak = async () => {
+  const handleSpeak = async (pass = false) => {
     if (!text.trim() || speak) return;
     setLoading(true);
     setSpeak(true);
@@ -309,7 +314,9 @@ function App() {
       const response = await makeSpeech(text);
       const { filename } = response.data;
       setAudioSource(`${host}${filename}`);
-      addMessage(text);
+      if (!pass) {
+        addMessage(text);
+      }
       setText("");
     } catch (err) {
       console.error("Speak error:", err);
@@ -331,8 +338,8 @@ function App() {
       addMessage(userText);
       addMessage(groqResponse, false);
       setText("");
-      setText(groqResponse); // Set AI response for speaking
-      await handleSpeak();
+      setText(groqResponse);
+      await handleSpeak(true);
     } catch (error) {
       console.error("Chat error:", error);
       addMessage("Error processing chat", false);
@@ -399,6 +406,109 @@ function App() {
     setIsRecording(false);
   };
 
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("prescription", file);
+      const uploadResponse = await axios.post(`${host}/ocr/upload`, formData);
+      const { prescriptionId, extractedText } = uploadResponse.data;
+
+      if (!prescriptionId || !extractedText)
+        throw new Error("No prescription ID or extracted text received");
+
+      const ocrResponse = await axios.get(
+        `${host}/ocr/prescriptions/${prescriptionId}`
+      );
+      const prescriptionDataRaw = ocrResponse.data;
+
+      const ocrText = JSON.stringify(prescriptionDataRaw);
+      const prompt = `
+        Parse the following OCR text from a prescription into a structured JSON object. Extract meaningful details such as medicine names, dosages, times (in AM/PM format), frequencies, priorities (High, Medium, Low), doctor details (name, contact, specialty), patient details (name, age), date, and any additional notes. Return the result in this schema:
+        {
+          "prescription": {
+            "medicines": [
+              {
+                "name": "string",
+                "dosage": "string",
+                "time": "string",
+                "frequency": "string",
+                "priority": "string"
+              }
+            ],
+            "doctor": {
+              "name": "string",
+              "contact": "string",
+              "specialty": "string"
+            },
+            "patient": {
+              "name": "string",
+              "age": "number"
+            },
+            "date": "string",
+            "notes": "string"
+          }
+        }
+        Here’s the OCR text to parse:
+        ${ocrText}
+        In case time is not clear, add a "midday / noon" reminder alternatively. Do not add any extra text outside the object.
+      `;
+
+      const groqResponse = await axios.post(`${host}/groq`, { prompt });
+      const { response: parsedPrescription } = groqResponse.data;
+      const cleanedJson = parsedPrescription
+        .replace(/^\s*```json\s*\n?/, "")
+        .replace(/\s*```\s*$/, "")
+        .trim();
+
+      if (!cleanedJson) throw new Error("No parsed data from Groq");
+
+      const parsedData = JSON.parse(cleanedJson);
+      setPrescriptionData(parsedData);
+      setEditedPrescription(JSON.parse(JSON.stringify(parsedData))); // Deep copy
+      setModalOpen(true);
+      addMessage("Uploaded prescription image", true);
+    } catch (error) {
+      console.error("Image upload/OCR/Groq error:", error);
+      addMessage(`Error processing image: ${error.message}`, false);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFieldChange = (path, value) => {
+    const newData = { ...editedPrescription };
+    let current = newData;
+    for (let i = 0; i < path.length - 1; i++) {
+      current = current[path[i]];
+    }
+    current[path[path.length - 1]] = value;
+    setEditedPrescription(newData);
+  };
+
+  const saveToFirebase = async () => {
+    try {
+      const uid = localStorage.getItem("uid");
+      if (!uid) throw new Error("User not logged in (UID missing)");
+
+      const docRef = await addDoc(collection(db, "prescriptions-parsed"), {
+        uid,
+        prescription: editedPrescription,
+        timestamp: new Date().toISOString(),
+      });
+
+      addMessage(`Prescription saved with ID: ${docRef.id}`, false);
+      setModalOpen(false);
+    } catch (error) {
+      console.error("Firebase save error:", error);
+      addMessage(`Error saving to Firebase: ${error.message}`, false);
+    }
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-transparent font-sans relative overflow-hidden">
       <Canvas
@@ -430,7 +540,7 @@ function App() {
         </Suspense>
       </Canvas>
 
-      <div 
+      <div
         ref={chatAreaRef}
         className="max-h-[30vh] overflow-y-auto p-2.5 bg-transparent flex flex-col gap-2 z-10 absolute bottom-[60px] left-2.5 right-2.5 rounded-lg"
       >
@@ -438,9 +548,7 @@ function App() {
           <div
             key={index}
             className={`max-w-[80%] p-2 rounded-md text-sm leading-relaxed break-words shadow-sm ${
-              msg.isUser 
-                ? "bg-[#dcf8c6] self-end" 
-                : "bg-[#e3f2fd] self-start"
+              msg.isUser ? "bg-[#dcf8c6] self-end" : "bg-[#e3f2fd] self-start"
             }`}
           >
             {msg.content}
@@ -466,14 +574,274 @@ function App() {
           ➤
         </button>
         <button
-          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed`}
+          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors mr-1.5 disabled:bg-gray-300 disabled:cursor-not-allowed`}
           onClick={isRecording ? stopRecording : startRecording}
           disabled={!isRecording && loading}
           title={isRecording ? "Stop Recording" : "Start Recording"}
         >
           {isRecording ? "■" : "🎤"}
         </button>
+        <button
+          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed`}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading || isRecording}
+          title="Upload Prescription"
+        >
+          📸
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
       </div>
+
+      {/* Custom Modal */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold mb-4">Edit Prescription</h2>
+            {editedPrescription && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Medicines</h3>
+                  {editedPrescription.prescription.medicines.map(
+                    (med, index) => (
+                      <div key={index} className="space-y-2 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={med.name}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                ["prescription", "medicines", index, "name"],
+                                e.target.value
+                              )
+                            }
+                            className="w-full p-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">
+                            Dosage
+                          </label>
+                          <input
+                            type="text"
+                            value={med.dosage}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                ["prescription", "medicines", index, "dosage"],
+                                e.target.value
+                              )
+                            }
+                            className="w-full p-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">
+                            Time (e.g., 8:00 AM)
+                          </label>
+                          <input
+                            type="text"
+                            value={med.time}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                ["prescription", "medicines", index, "time"],
+                                e.target.value
+                              )
+                            }
+                            className="w-full p-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">
+                            Frequency
+                          </label>
+                          <input
+                            type="text"
+                            value={med.frequency}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                [
+                                  "prescription",
+                                  "medicines",
+                                  index,
+                                  "frequency",
+                                ],
+                                e.target.value
+                              )
+                            }
+                            className="w-full p-2 border rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">
+                            Priority
+                          </label>
+                          <input
+                            type="text"
+                            value={med.priority}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                [
+                                  "prescription",
+                                  "medicines",
+                                  index,
+                                  "priority",
+                                ],
+                                e.target.value
+                              )
+                            }
+                            className="w-full p-2 border rounded"
+                          />
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Doctor</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm font-medium">Name</label>
+                      <input
+                        type="text"
+                        value={editedPrescription.prescription.doctor.name}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["prescription", "doctor", "name"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Contact
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.prescription.doctor.contact}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["prescription", "doctor", "contact"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">
+                        Specialty
+                      </label>
+                      <input
+                        type="text"
+                        value={editedPrescription.prescription.doctor.specialty}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["prescription", "doctor", "specialty"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Patient</h3>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm font-medium">Name</label>
+                      <input
+                        type="text"
+                        value={editedPrescription.prescription.patient.name}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["prescription", "patient", "name"],
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">Age</label>
+                      <input
+                        type="number"
+                        value={editedPrescription.prescription.patient.age}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            ["prescription", "patient", "age"],
+                            Number(e.target.value)
+                          )
+                        }
+                        className="w-full p-2 border rounded"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Date</label>
+                  <input
+                    type="text"
+                    value={editedPrescription.prescription.date}
+                    onChange={(e) =>
+                      handleFieldChange(
+                        ["prescription", "date"],
+                        e.target.value
+                      )
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Notes</label>
+                  <textarea
+                    value={editedPrescription.prescription.notes}
+                    onChange={(e) =>
+                      handleFieldChange(
+                        ["prescription", "notes"],
+                        e.target.value
+                      )
+                    }
+                    className="w-full p-2 border rounded resize-y"
+                    rows="3"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex justify-between">
+              <button
+                className="px-4 py-2 bg-[#00a884] text-white rounded hover:bg-[#008f6d]"
+                onClick={saveToFirebase}
+              >
+                Save
+              </button>
+              <button
+                className="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300"
+                onClick={() => setModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#00a884] text-lg z-[1000]">
