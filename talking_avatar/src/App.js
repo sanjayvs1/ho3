@@ -21,6 +21,7 @@ const _ = require("lodash");
 
 const host = process.env.REACT_APP_API;
 
+// Avatar component (unchanged)
 function Avatar({
   avatar_url,
   speak,
@@ -172,7 +173,7 @@ function Avatar({
   const mixer = useMemo(() => new THREE.AnimationMixer(gltf.scene), []);
 
   useEffect(() => {
-    if (!speak) return;
+    if (!speak || !text.trim()) return;
 
     makeSpeech(text)
       .then((response) => {
@@ -190,7 +191,7 @@ function Avatar({
         setAudioSource(filename);
       })
       .catch((err) => {
-        console.error(err);
+        console.error("Speech generation error:", err);
         setSpeak(false);
       });
   }, [speak, text, setAudioSource, setSpeak]);
@@ -248,122 +249,228 @@ function Avatar({
 }
 
 function makeSpeech(text) {
+  if (!text || typeof text !== "string") {
+    return Promise.reject(new Error("Invalid text input"));
+  }
   return axios.post(host + "/talk", { text });
 }
 
+// Updated styles with transparent chat background
 const STYLES = {
-  area: {
-    position: "absolute",
-    bottom: "20px",
-    left: "20px",
-    zIndex: 500,
-    background: "rgba(0,0,0,0.7)",
-    padding: "20px",
-    borderRadius: "10px",
-    backdropFilter: "blur(10px)",
-    boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+  container: {
+    height: "100vh",
+    width: "100vw",
+    display: "flex",
+    flexDirection: "column",
+    background: "transparent",
+    fontFamily: "Segoe UI, sans-serif",
+    position: "relative",
+    overflow: "hidden",
   },
-  text: {
-    margin: "0px",
-    width: "300px",
-    padding: "12px",
-    background: "rgba(255,255,255,0.1)",
-    color: "#ffffff",
-    fontSize: "1.2em",
-    border: "none",
+  chatArea: {
+    maxHeight: "30vh",
+    overflowY: "auto",
+    padding: "10px",
+    background: "transparent", // Fully transparent to show model
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    zIndex: 1,
+    position: "absolute",
+    bottom: "60px",
+    left: "10px",
+    right: "10px",
+    borderRadius: "8px",
+  },
+  message: {
+    maxWidth: "80%",
+    padding: "8px 12px",
     borderRadius: "6px",
-    resize: "none",
+    fontSize: "0.9em",
+    lineHeight: "1.3",
+    wordBreak: "break-word",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+  },
+  userMessage: {
+    background: "#dcf8c6", // Green for user
+    alignSelf: "flex-end",
+  },
+  aiMessage: {
+    background: "#e3f2fd", // Light blue for AI
+    alignSelf: "flex-start",
+  },
+  inputArea: {
+    display: "flex",
+    alignItems: "center",
+    padding: "10px",
+    background: "rgba(240, 242, 245, 0.95)",
+    borderTop: "1px solid #d1d7db",
+    boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
+    zIndex: 1,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  textInput: {
+    flex: 1,
+    padding: "10px 12px",
+    border: "none",
+    borderRadius: "20px",
+    background: "#ffffff",
+    marginRight: "8px",
+    fontSize: "0.9em",
+    outline: "none",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)",
   },
   button: {
-    padding: "12px 20px",
-    marginTop: "10px",
-    marginRight: "10px",
-    display: "inline-block",
-    color: "#FFFFFF",
-    background: "rgba(255,255,255,0.2)",
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
     border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "1em",
-    transition: "background 0.3s ease",
-  },
-  audioControls: {
-    marginTop: "10px",
+    background: "#00a884",
+    color: "white",
     display: "flex",
-    gap: "10px",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    marginRight: "5px",
+  },
+  buttonDisabled: {
+    background: "#cccccc",
+    cursor: "not-allowed",
+  },
+  loading: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    color: "#00a884",
+    fontSize: "1.2em",
+    zIndex: 1000,
+  },
+  canvas: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    zIndex: 0,
+  },
+  "@media (max-width: 768px)": {
+    chatArea: {
+      maxHeight: "25vh",
+      padding: "8px",
+    },
+    message: {
+      fontSize: "0.8em",
+      padding: "6px 10px",
+    },
+    inputArea: {
+      padding: "8px",
+    },
+    textInput: {
+      fontSize: "0.8em",
+      padding: "8px 10px",
+    },
+    button: {
+      width: "32px",
+      height: "32px",
+    },
   },
 };
 
 function App() {
   const audioPlayer = useRef();
+  const chatAreaRef = useRef(null);
   const [speak, setSpeak] = useState(false);
-  const [text, setText] = useState(
-    "My name is Arwen. I’m a virtual human who can speak whatever you type here along with realistic facial movements."
-  );
+  const [text, setText] = useState("");
+  const [messages, setMessages] = useState([]);
   const [audioSource, setAudioSource] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (chatAreaRef.current) {
+      chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const addMessage = (content, isUser = true) => {
+    if (!content.trim()) return;
+    setMessages((prev) => [
+      ...prev,
+      { content, isUser, timestamp: Date.now() },
+    ]);
+  };
 
   const playerEnded = () => {
+    console.debug("Audio playback ended");
     setSpeak(false);
     setPlaying(false);
   };
 
   const playerReady = () => {
-    audioPlayer.current.audioEl.current.play();
-    setPlaying(true);
-    setSpeak(true); // Sync avatar animation with playback
-  };
-
-  const togglePlayPause = () => {
-    const audioEl = audioPlayer.current.audioEl.current;
-    if (playing) {
-      audioEl.pause();
-      setPlaying(false);
-      setSpeak(false);
-    } else {
-      audioEl.play();
+    console.debug("Audio ready to play");
+    if (audioPlayer.current && audioPlayer.current.audioEl.current) {
+      audioPlayer.current.audioEl.current.play().catch((err) => {
+        console.error("Audio play error:", err);
+        setSpeak(false);
+        setPlaying(false);
+        addMessage("Error playing audio", false);
+      });
       setPlaying(true);
       setSpeak(true);
     }
   };
 
-  const replayAudio = () => {
-    const audioEl = audioPlayer.current.audioEl.current;
-    audioEl.currentTime = 0;
-    audioEl.play();
-    setPlaying(true);
-    setSpeak(true);
-  };
-
   const handleSpeak = async () => {
+    if (!text.trim() || speak) return;
+    setLoading(true);
     setSpeak(true);
     try {
       const response = await makeSpeech(text);
       const { filename } = response.data;
       setAudioSource(`${host}${filename}`);
+      addMessage(text);
+      setText("");
     } catch (err) {
       console.error("Speak error:", err);
       setSpeak(false);
+      addMessage("Error generating speech", false);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleChat = async () => {
+    if (!text.trim() || loading) return;
+    setLoading(true);
     try {
-      const response = await axios.post(`${host}/groq`, {
-        prompt: text,
-      });
+      const userText = text;
+      const response = await axios.post(`${host}/groq`, { prompt: text });
       const { response: groqResponse } = response.data;
-      setText(groqResponse);
-      handleSpeak();
+      if (!groqResponse) throw new Error("No response from chat API");
+      addMessage(userText);
+      addMessage(groqResponse, false);
+      setText("");
+      setText(groqResponse); // Set AI response for speaking
+      await handleSpeak();
     } catch (error) {
       console.error("Chat error:", error);
+      addMessage("Error processing chat", false);
       setSpeak(false);
+    } finally {
+      setLoading(false);
     }
   };
 
   const startRecording = async () => {
+    if (isRecording || loading) return;
+    setLoading(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -377,84 +484,52 @@ function App() {
         formData.append("audio", audioBlob);
 
         try {
-          // Step 1: Send to /transcribe
           const transcribeResponse = await axios.post(
             `${host}/transcribe`,
             formData
           );
           const { transcript } = transcribeResponse.data;
+          if (!transcript) throw new Error("No transcript received");
           setText(transcript);
-
-          handleChat();
+          await handleChat();
         } catch (err) {
           console.error("Recording error:", err);
+          addMessage("Error transcribing audio", false);
           setSpeak(false);
+        } finally {
+          setLoading(false);
+          stream.getTracks().forEach((track) => track.stop());
         }
+      };
 
-        stream.getTracks().forEach((track) => track.stop());
+      recorder.onerror = (err) => {
+        console.error("Recorder error:", err);
+        setIsRecording(false);
+        setLoading(false);
+        addMessage("Recording error occurred", false);
       };
 
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (err) {
-      console.error("Recording error:", err);
+      console.error("Recording initialization error:", err);
+      addMessage("Failed to start recording", false);
+      setLoading(false);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-    }
+    if (!mediaRecorder || !isRecording) return;
+    mediaRecorder.stop();
+    setIsRecording(false);
   };
 
   return (
-    <div className="full">
-      <div style={STYLES.area}>
-        <textarea
-          rows={4}
-          style={STYLES.text}
-          value={text}
-          onChange={(e) => setText(e.target.value.substring(0, 200))}
-          placeholder="Type your message here..."
-        />
-        <br />
-        <button onClick={handleSpeak} style={STYLES.button} disabled={speak}>
-          {speak ? "Speaking..." : "Speak"}
-        </button>
-        <button onClick={handleChat} style={STYLES.button} disabled={speak}>
-          Chat
-        </button>
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          style={STYLES.button}
-        >
-          {isRecording ? "Stop Recording" : "Start Recording"}
-        </button>
-
-        {/* Audio controls */}
-        {audioSource && (
-          <div style={STYLES.audioControls}>
-            <button onClick={togglePlayPause} style={STYLES.button}>
-              {playing ? "Pause" : "Play"}
-            </button>
-            <button onClick={replayAudio} style={STYLES.button}>
-              Replay
-            </button>
-          </div>
-        )}
-      </div>
-
-      <ReactAudioPlayer
-        src={audioSource}
-        ref={audioPlayer}
-        onEnded={playerEnded}
-        onCanPlayThrough={playerReady}
-      />
-
+    <div style={STYLES.container}>
       <Canvas
-        dpr={2}
+        dpr={window.devicePixelRatio}
+        style={STYLES.canvas}
         onCreated={(ctx) => {
           ctx.gl.physicallyCorrectLights = true;
         }}
@@ -480,7 +555,72 @@ function App() {
           />
         </Suspense>
       </Canvas>
-      <Loader dataInterpolation={(p) => `Loading... please wait`} />
+
+      <div style={STYLES.chatArea} ref={chatAreaRef}>
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            style={{
+              ...STYLES.message,
+              ...(msg.isUser ? STYLES.userMessage : STYLES.aiMessage),
+            }}
+          >
+            {msg.content}
+          </div>
+        ))}
+      </div>
+
+      <div style={STYLES.inputArea}>
+        <input
+          style={STYLES.textInput}
+          value={text}
+          onChange={(e) => setText(e.target.value.substring(0, 200))}
+          placeholder="Type a message..."
+          disabled={loading || isRecording}
+          onKeyPress={(e) => e.key === "Enter" && handleChat()}
+        />
+        <button
+          style={{
+            ...STYLES.button,
+            ...(loading || isRecording || !text.trim()
+              ? STYLES.buttonDisabled
+              : {}),
+          }}
+          onClick={handleChat}
+          disabled={loading || isRecording || !text.trim()}
+          title="Send"
+        >
+          ➤
+        </button>
+        <button
+          style={{
+            ...STYLES.button,
+            ...(!isRecording && loading ? STYLES.buttonDisabled : {}),
+          }}
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={!isRecording && loading}
+          title={isRecording ? "Stop Recording" : "Start Recording"}
+        >
+          {isRecording ? "■" : "🎤"}
+        </button>
+      </div>
+
+      {loading && <div style={STYLES.loading}>Loading...</div>}
+
+      <ReactAudioPlayer
+        src={audioSource}
+        ref={audioPlayer}
+        onEnded={playerEnded}
+        onCanPlayThrough={playerReady}
+        onError={(err) => {
+          console.error("Audio player error:", err);
+          setSpeak(false);
+          setPlaying(false);
+          addMessage("Error playing audio", false);
+        }}
+      />
+
+      <Loader dataInterpolation={(p) => `Loading... ${p.toFixed(0)}%`} />
     </div>
   );
 }
