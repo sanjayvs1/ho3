@@ -1,19 +1,34 @@
-import React, { Suspense, useEffect, useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF, useTexture, Loader, Environment, useFBX, useAnimations, OrthographicCamera } from '@react-three/drei';
-import { MeshStandardMaterial } from 'three/src/materials/MeshStandardMaterial';
-import { LinearEncoding, sRGBEncoding } from 'three/src/constants';
-import { LineBasicMaterial, MeshPhysicalMaterial, Vector2 } from 'three';
-import ReactAudioPlayer from 'react-audio-player';
-import createAnimation from './converter';
-import blinkData from './blendDataBlink.json';
-import * as THREE from 'three';
-import axios from 'axios';
-const _ = require('lodash');
+import React, { Suspense, useEffect, useRef, useState, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import {
+  useGLTF,
+  useTexture,
+  Loader,
+  Environment,
+  useFBX,
+  useAnimations,
+  OrthographicCamera,
+} from "@react-three/drei";
+import { MeshStandardMaterial } from "three/src/materials/MeshStandardMaterial";
+import { LinearEncoding, sRGBEncoding } from "three/src/constants";
+import { LineBasicMaterial, MeshPhysicalMaterial, Vector2 } from "three";
+import ReactAudioPlayer from "react-audio-player";
+import createAnimation from "./converter";
+import blinkData from "./blendDataBlink.json";
+import * as THREE from "three";
+import axios from "axios";
+const _ = require("lodash");
 
 const host = process.env.REACT_APP_API;
 
-function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) {
+function Avatar({
+  avatar_url,
+  speak,
+  setSpeak,
+  text,
+  setAudioSource,
+  playing,
+}) {
   let gltf = useGLTF(avatar_url);
   let morphTargetDictionaryBody = null;
   let morphTargetDictionaryLowerTeeth = null;
@@ -34,40 +49,43 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
     hairNormalTexture,
     hairRoughnessTexture,
   ] = useTexture([
-    '/images/body.webp',
-    '/images/eyes.webp',
-    '/images/teeth_diffuse.webp',
-    '/images/body_specular.webp',
-    '/images/body_roughness.webp',
-    '/images/body_normal.webp',
-    '/images/teeth_normal.webp',
-    '/images/h_color.webp',
-    '/images/tshirt_diffuse.webp',
-    '/images/tshirt_normal.webp',
-    '/images/tshirt_roughness.webp',
-    '/images/h_alpha.webp',
-    '/images/h_normal.webp',
-    '/images/h_roughness.webp',
+    "/images/body.webp",
+    "/images/eyes.webp",
+    "/images/teeth_diffuse.webp",
+    "/images/body_specular.webp",
+    "/images/body_roughness.webp",
+    "/images/body_normal.webp",
+    "/images/teeth_normal.webp",
+    "/images/h_color.webp",
+    "/images/tshirt_diffuse.webp",
+    "/images/tshirt_normal.webp",
+    "/images/tshirt_roughness.webp",
+    "/images/h_alpha.webp",
+    "/images/h_normal.webp",
+    "/images/h_roughness.webp",
   ]);
 
-  _.each([
-    bodyTexture,
-    eyesTexture,
-    teethTexture,
-    teethNormalTexture,
-    bodySpecularTexture,
-    bodyRoughnessTexture,
-    bodyNormalTexture,
-    tshirtDiffuseTexture,
-    tshirtNormalTexture,
-    tshirtRoughnessTexture,
-    hairAlphaTexture,
-    hairNormalTexture,
-    hairRoughnessTexture,
-  ], (t) => {
-    t.encoding = sRGBEncoding;
-    t.flipY = false;
-  });
+  _.each(
+    [
+      bodyTexture,
+      eyesTexture,
+      teethTexture,
+      teethNormalTexture,
+      bodySpecularTexture,
+      bodyRoughnessTexture,
+      bodyNormalTexture,
+      tshirtDiffuseTexture,
+      tshirtNormalTexture,
+      tshirtRoughnessTexture,
+      hairAlphaTexture,
+      hairNormalTexture,
+      hairRoughnessTexture,
+    ],
+    (t) => {
+      t.encoding = sRGBEncoding;
+      t.flipY = false;
+    }
+  );
 
   bodyNormalTexture.encoding = LinearEncoding;
   tshirtNormalTexture.encoding = LinearEncoding;
@@ -75,12 +93,16 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
   hairNormalTexture.encoding = LinearEncoding;
 
   gltf.scene.traverse((node) => {
-    if (node.type === 'Mesh' || node.type === 'LineSegments' || node.type === 'SkinnedMesh') {
+    if (
+      node.type === "Mesh" ||
+      node.type === "LineSegments" ||
+      node.type === "SkinnedMesh"
+    ) {
       node.castShadow = true;
       node.receiveShadow = true;
       node.frustumCulled = false;
 
-      if (node.name.includes('Body')) {
+      if (node.name.includes("Body")) {
         node.castShadow = true;
         node.receiveShadow = true;
         node.material = new MeshPhysicalMaterial();
@@ -93,14 +115,14 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.8;
       }
 
-      if (node.name.includes('Eyes')) {
+      if (node.name.includes("Eyes")) {
         node.material = new MeshStandardMaterial();
         node.material.map = eyesTexture;
         node.material.roughness = 0.1;
         node.material.envMapIntensity = 0.5;
       }
 
-      if (node.name.includes('Brows')) {
+      if (node.name.includes("Brows")) {
         node.material = new LineBasicMaterial({ color: 0x000000 });
         node.material.linewidth = 1;
         node.material.opacity = 0.5;
@@ -108,7 +130,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.visible = false;
       }
 
-      if (node.name.includes('Teeth')) {
+      if (node.name.includes("Teeth")) {
         node.receiveShadow = true;
         node.castShadow = true;
         node.material = new MeshStandardMaterial();
@@ -118,7 +140,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.7;
       }
 
-      if (node.name.includes('Hair')) {
+      if (node.name.includes("Hair")) {
         node.material = new MeshStandardMaterial();
         node.material.map = hairTexture;
         node.material.alphaMap = hairAlphaTexture;
@@ -131,7 +153,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.3;
       }
 
-      if (node.name.includes('TSHIRT')) {
+      if (node.name.includes("TSHIRT")) {
         node.material = new MeshStandardMaterial();
         node.material.map = tshirtDiffuseTexture;
         node.material.roughnessMap = tshirtRoughnessTexture;
@@ -140,7 +162,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.5;
       }
 
-      if (node.name.includes('TeethLower')) {
+      if (node.name.includes("TeethLower")) {
         morphTargetDictionaryLowerTeeth = node.morphTargetDictionary;
       }
     }
@@ -156,8 +178,12 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
       .then((response) => {
         let { blendData, filename } = response.data;
         let newClips = [
-          createAnimation(blendData, morphTargetDictionaryBody, 'HG_Body'),
-          createAnimation(blendData, morphTargetDictionaryLowerTeeth, 'HG_TeethLower'),
+          createAnimation(blendData, morphTargetDictionaryBody, "HG_Body"),
+          createAnimation(
+            blendData,
+            morphTargetDictionaryLowerTeeth,
+            "HG_TeethLower"
+          ),
         ];
         filename = host + filename;
         setClips(newClips);
@@ -169,17 +195,21 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
       });
   }, [speak, text, setAudioSource, setSpeak]);
 
-  let idleFbx = useFBX('/idle.fbx');
+  let idleFbx = useFBX("/idle.fbx");
   let { clips: idleClips } = useAnimations(idleFbx.animations);
 
-  idleClips[0].tracks = _.filter(idleClips[0].tracks, (track) =>
-    track.name.includes('Head') || track.name.includes('Neck') || track.name.includes('Spine2')
+  idleClips[0].tracks = _.filter(
+    idleClips[0].tracks,
+    (track) =>
+      track.name.includes("Head") ||
+      track.name.includes("Neck") ||
+      track.name.includes("Spine2")
   );
 
   idleClips[0].tracks = _.map(idleClips[0].tracks, (track) => {
-    if (track.name.includes('Head')) track.name = 'head.quaternion';
-    if (track.name.includes('Neck')) track.name = 'neck.quaternion';
-    if (track.name.includes('Spine')) track.name = 'spine2.quaternion';
+    if (track.name.includes("Head")) track.name = "head.quaternion";
+    if (track.name.includes("Neck")) track.name = "neck.quaternion";
+    if (track.name.includes("Spine")) track.name = "spine2.quaternion";
     return track;
   });
 
@@ -187,7 +217,11 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
     let idleClipAction = mixer.clipAction(idleClips[0]);
     idleClipAction.play();
 
-    let blinkClip = createAnimation(blinkData, morphTargetDictionaryBody, 'HG_Body');
+    let blinkClip = createAnimation(
+      blinkData,
+      morphTargetDictionaryBody,
+      "HG_Body"
+    );
     let blinkAction = mixer.clipAction(blinkClip);
     blinkAction.play();
   }, [mixer]);
@@ -214,49 +248,49 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
 }
 
 function makeSpeech(text) {
-  return axios.post(host + '/talk', { text });
+  return axios.post(host + "/talk", { text });
 }
 
 const STYLES = {
   area: {
-    position: 'absolute',
-    bottom: '20px',
-    left: '20px',
+    position: "absolute",
+    bottom: "20px",
+    left: "20px",
     zIndex: 500,
-    background: 'rgba(0,0,0,0.7)',
-    padding: '20px',
-    borderRadius: '10px',
-    backdropFilter: 'blur(10px)',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    background: "rgba(0,0,0,0.7)",
+    padding: "20px",
+    borderRadius: "10px",
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
   },
   text: {
-    margin: '0px',
-    width: '300px',
-    padding: '12px',
-    background: 'rgba(255,255,255,0.1)',
-    color: '#ffffff',
-    fontSize: '1.2em',
-    border: 'none',
-    borderRadius: '6px',
-    resize: 'none',
+    margin: "0px",
+    width: "300px",
+    padding: "12px",
+    background: "rgba(255,255,255,0.1)",
+    color: "#ffffff",
+    fontSize: "1.2em",
+    border: "none",
+    borderRadius: "6px",
+    resize: "none",
   },
   button: {
-    padding: '12px 20px',
-    marginTop: '10px',
-    marginRight: '10px',
-    display: 'inline-block',
-    color: '#FFFFFF',
-    background: 'rgba(255,255,255,0.2)',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '1em',
-    transition: 'background 0.3s ease',
+    padding: "12px 20px",
+    marginTop: "10px",
+    marginRight: "10px",
+    display: "inline-block",
+    color: "#FFFFFF",
+    background: "rgba(255,255,255,0.2)",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "1em",
+    transition: "background 0.3s ease",
   },
   audioControls: {
-    marginTop: '10px',
-    display: 'flex',
-    gap: '10px',
+    marginTop: "10px",
+    display: "flex",
+    gap: "10px",
   },
 };
 
@@ -264,7 +298,7 @@ function App() {
   const audioPlayer = useRef();
   const [speak, setSpeak] = useState(false);
   const [text, setText] = useState(
-    'My name is Arwen. I’m a virtual human who can speak whatever you type here along with realistic facial movements.'
+    "My name is Arwen. I’m a virtual human who can speak whatever you type here along with realistic facial movements."
   );
   const [audioSource, setAudioSource] = useState(null);
   const [playing, setPlaying] = useState(false);
@@ -310,7 +344,21 @@ function App() {
       const { filename } = response.data;
       setAudioSource(`${host}${filename}`);
     } catch (err) {
-      console.error('Speak error:', err);
+      console.error("Speak error:", err);
+      setSpeak(false);
+    }
+  };
+
+  const handleChat = async () => {
+    try {
+      const response = await axios.post(`${host}/groq`, {
+        prompt: text,
+      });
+      const { response: groqResponse } = response.data;
+      setText(groqResponse);
+      handleSpeak();
+    } catch (error) {
+      console.error("Chat error:", error);
       setSpeak(false);
     }
   };
@@ -324,26 +372,22 @@ function App() {
       recorder.ondataavailable = (e) => chunks.push(e.data);
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+        const audioBlob = new Blob(chunks, { type: "audio/wav" });
         const formData = new FormData();
-        formData.append('audio', audioBlob);
+        formData.append("audio", audioBlob);
 
         try {
           // Step 1: Send to /transcribe
-          const transcribeResponse = await axios.post(`${host}/transcribe`, formData);
+          const transcribeResponse = await axios.post(
+            `${host}/transcribe`,
+            formData
+          );
           const { transcript } = transcribeResponse.data;
-          setText(transcript); // Update UI with transcribed text
+          setText(transcript);
 
-          // Step 2: Send to /chat
-          const chatResponse = await axios.post(`${host}/chat`, formData);
-          const { groqResponse, audioUrl } = chatResponse.data;
-          console.log(groqResponse)
-          console.log(audioUrl)
-          // setText(groqResponse); // Update UI with Groq response
-          setAudioSource(`${host}${audioUrl}`);
-          setSpeak(true); // Trigger playback and animation
+          handleChat();
         } catch (err) {
-          console.error('Recording error:', err);
+          console.error("Recording error:", err);
           setSpeak(false);
         }
 
@@ -354,7 +398,7 @@ function App() {
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (err) {
-      console.error('Recording error:', err);
+      console.error("Recording error:", err);
     }
   };
 
@@ -375,21 +419,25 @@ function App() {
           onChange={(e) => setText(e.target.value.substring(0, 200))}
           placeholder="Type your message here..."
         />
+        <br />
         <button onClick={handleSpeak} style={STYLES.button} disabled={speak}>
-          {speak ? 'Speaking...' : 'Speak'}
+          {speak ? "Speaking..." : "Speak"}
+        </button>
+        <button onClick={handleChat} style={STYLES.button} disabled={speak}>
+          Chat
         </button>
         <button
           onClick={isRecording ? stopRecording : startRecording}
           style={STYLES.button}
         >
-          {isRecording ? 'Stop Recording' : 'Start Recording'}
+          {isRecording ? "Stop Recording" : "Start Recording"}
         </button>
 
         {/* Audio controls */}
         {audioSource && (
           <div style={STYLES.audioControls}>
             <button onClick={togglePlayPause} style={STYLES.button}>
-              {playing ? 'Pause' : 'Play'}
+              {playing ? "Pause" : "Play"}
             </button>
             <button onClick={replayAudio} style={STYLES.button}>
               Replay
@@ -413,7 +461,10 @@ function App() {
       >
         <OrthographicCamera makeDefault zoom={2000} position={[0, 1.65, 1]} />
         <Suspense fallback={null}>
-          <Environment background={false} files="/images/photo_studio_loft_hall_1k.hdr" />
+          <Environment
+            background={false}
+            files="/images/photo_studio_loft_hall_1k.hdr"
+          />
         </Suspense>
         <Suspense fallback={null}>
           <Bg />
@@ -435,7 +486,7 @@ function App() {
 }
 
 function Bg() {
-  const texture = useTexture('/images/bg.webp');
+  const texture = useTexture("/images/bg.webp");
   return (
     <mesh position={[0, 1.5, -2]} scale={[0.8, 0.8, 0.8]}>
       <planeBufferGeometry />
