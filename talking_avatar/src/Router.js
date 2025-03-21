@@ -7,6 +7,7 @@ import GuardianOnboarding from './pages/GuardianOnboarding';
 import Market from './pages/Market';
 import Community from './pages/Community';
 import Exercise from './pages/Exercise';
+import Profile from './pages/Profile';
 // import Avatar from './pages/Avatar';
 
 function Router() {
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/market" element={<Market />} />
       <Route path="/community" element={<Community />} />
       <Route path="/exercise" element={<Exercise />} />
+      <Route path="/profile" element={<Profile />} />
       {/* <Route path="/avatar" element={<Avatar />} /> */}
     </Routes>
   );

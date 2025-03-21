@@ -19,6 +19,19 @@ import * as THREE from "three";
 import axios from "axios";
 import { db } from "./utils/firebaseConfig"; // Adjust path to your firebase.js
 import { collection, addDoc } from "firebase/firestore";
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  FaShoppingBag,
+  FaRunning,
+  FaUsers,
+  FaPaperPlane,
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaCamera,
+  FaTimes,
+  FaUser,
+  FaSignOutAlt
+} from 'react-icons/fa';
 const _ = require("lodash");
 
 const host = process.env.REACT_APP_API;
@@ -258,6 +271,7 @@ function makeSpeech(text) {
 
 function App() {
   const audioPlayer = useRef();
+  const navigate = useNavigate();
   const chatAreaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [speak, setSpeak] = useState(false);
@@ -271,6 +285,13 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [prescriptionData, setPrescriptionData] = useState(null);
   const [editedPrescription, setEditedPrescription] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close menu when route changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location]);
 
   useEffect(() => {
     if (chatAreaRef.current) {
@@ -452,7 +473,7 @@ function App() {
             "notes": "string"
           }
         }
-        Here’s the OCR text to parse:
+        Here's the OCR text to parse:
         ${ocrText}
         In case time is not clear, add a "midday / noon" reminder alternatively. Do not add any extra text outside the object.
       `;
@@ -511,6 +532,127 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-transparent font-sans relative overflow-hidden">
+      {/* Hamburger Menu Button */}
+      <button
+        onClick={() => setIsMenuOpen(!isMenuOpen)}
+        className="fixed top-4 left-4 z-30 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors"
+        aria-label="Toggle Menu"
+      >
+        <div className="w-6 h-6 flex flex-col justify-around">
+          <span className={`block w-full h-0.5 bg-[#00a884] transform transition-all duration-300 ${isMenuOpen ? 'rotate-45 translate-y-2.5' : ''}`} />
+          <span className={`block w-full h-0.5 bg-[#00a884] transition-all duration-300 ${isMenuOpen ? 'opacity-0' : ''}`} />
+          <span className={`block w-full h-0.5 bg-[#00a884] transform transition-all duration-300 ${isMenuOpen ? '-rotate-45 -translate-y-2.5' : ''}`} />
+        </div>
+      </button>
+
+      {/* Slide-out Menu */}
+      <div
+        className={`fixed inset-0 z-20 transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+      >
+        {/* Overlay */}
+        <div
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={() => setIsMenuOpen(false)}
+        />
+
+        {/* Menu Panel */}
+        <div className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl">
+          <div className="flex flex-col h-full">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-[#00a884] ml-10">Menu</h2>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <FaTimes className="text-gray-500 text-xl" />
+              </button>
+            </div>
+
+            {/* User Profile Section */}
+            <div className="p-4 border-b border-gray-200">
+              <Link
+                to="/profile"
+                className="flex items-center space-x-3 p-2 rounded-xl hover:bg-[#e8f5e9] transition-colors"
+              >
+                <div className="w-12 h-12 bg-[#00a884] rounded-full flex items-center justify-center">
+                  <FaUser className="text-white text-xl" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-800">My Profile</h3>
+                  <p className="text-sm text-gray-500">View and edit profile</p>
+                </div>
+              </Link>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="flex-1 p-4 space-y-3">
+              <Link
+                to="/profile"
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/profile'
+                  ? 'bg-[#00a884] text-white shadow-md'
+                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
+                  }`}
+              >
+                <FaUser className="mr-3 text-2xl" />
+                Profile
+              </Link>
+              <Link
+                to="/market"
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/market'
+                  ? 'bg-[#00a884] text-white shadow-md'
+                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
+                  }`}
+              >
+                <FaShoppingBag className="mr-3 text-2xl" />
+                Market
+              </Link>
+              <Link
+                to="/exercise"
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/exercise'
+                  ? 'bg-[#00a884] text-white shadow-md'
+                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
+                  }`}
+              >
+                <FaRunning className="mr-3 text-2xl" />
+                Exercise
+              </Link>
+              <Link
+                to="/community"
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/community'
+                  ? 'bg-[#00a884] text-white shadow-md'
+                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
+                  }`}
+              >
+                <FaUsers className="mr-3 text-2xl" />
+                Community
+              </Link>
+            </nav>
+
+            {/* Bottom Section */}
+            <div className="p-4 border-t border-gray-200">
+              <button
+                className="flex items-center w-full p-4 rounded-xl text-xl font-medium text-red-500 hover:bg-red-50 transition-all duration-200"
+                onClick={() => {
+                  localStorage.removeItem('authToken');
+                  localStorage.removeItem('sessionExpiry');
+                  localStorage.removeItem('userId');
+
+                  // Close the menu
+                  setIsMenuOpen(false);
+
+                  // Navigate to login page
+                  navigate('/login');
+                }}
+              >
+                <FaSignOutAlt className="mr-3 text-2xl" />
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <Canvas
         dpr={window.devicePixelRatio}
         className="absolute top-0 left-0 w-full h-full z-0"
@@ -542,53 +684,58 @@ function App() {
 
       <div
         ref={chatAreaRef}
-        className="max-h-[30vh] overflow-y-auto p-2.5 bg-transparent flex flex-col gap-2 z-10 absolute bottom-[60px] left-2.5 right-2.5 rounded-lg"
+        className="max-h-[40vh] md:max-h-[30vh] overflow-y-auto p-2.5 bg-transparent flex flex-col gap-2 z-10 absolute bottom-[80px] md:bottom-[60px] left-2.5 right-2.5 rounded-lg"
       >
         {messages.map((msg, index) => (
           <div
             key={index}
-            className={`max-w-[80%] p-2 rounded-md text-sm leading-relaxed break-words shadow-sm ${
-              msg.isUser ? "bg-[#dcf8c6] self-end" : "bg-[#e3f2fd] self-start"
-            }`}
+            className={`max-w-[85%] md:max-w-[80%] p-3 md:p-2 rounded-md text-sm md:text-base leading-relaxed break-words shadow-sm ${msg.isUser ? "bg-[#dcf8c6] self-end" : "bg-[#e3f2fd] self-start"
+              }`}
           >
             {msg.content}
           </div>
         ))}
       </div>
 
-      <div className="flex items-center p-2.5 bg-[rgba(240,242,245,0.95)] border-t border-[#d1d7db] shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-10 absolute bottom-0 left-0 right-0">
+      <div className="flex items-center p-3 md:p-4 bg-[rgba(240,242,245,0.98)] border-t-2 border-[#00a884] shadow-[0_-4px_15px_rgba(0,0,0,0.1)] z-10 absolute bottom-0 left-0 right-0">
         <input
-          className="flex-1 px-3 py-2.5 border-none rounded-full bg-white mr-2 text-sm outline-none shadow-inner disabled:opacity-50"
+          className="flex-1 px-3 md:px-4 py-2 md:py-3 border-2 border-[#00a884] rounded-full bg-white mr-2 md:mr-3 text-base md:text-lg outline-none shadow-inner disabled:opacity-50 placeholder:text-gray-400 focus:border-[#008f6f] transition-colors"
           value={text}
           onChange={(e) => setText(e.target.value.substring(0, 200))}
-          placeholder="Type a message..."
+          placeholder="Type your message here..."
           disabled={loading || isRecording}
           onKeyPress={(e) => e.key === "Enter" && handleChat()}
         />
-        <button
-          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors mr-1.5 disabled:bg-gray-300 disabled:cursor-not-allowed`}
-          onClick={handleChat}
-          disabled={loading || isRecording || !text.trim()}
-          title="Send"
-        >
-          ➤
-        </button>
-        <button
-          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors mr-1.5 disabled:bg-gray-300 disabled:cursor-not-allowed`}
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={!isRecording && loading}
-          title={isRecording ? "Stop Recording" : "Start Recording"}
-        >
-          {isRecording ? "■" : "🎤"}
-        </button>
-        <button
-          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed`}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={loading || isRecording}
-          title="Upload Prescription"
-        >
-          📸
-        </button>
+        <div className="flex gap-2 md:gap-3">
+          <button
+            className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-[#00a884] bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-all hover:bg-[#008f6f] hover:scale-105 disabled:bg-gray-300 disabled:border-gray-300 disabled:cursor-not-allowed shadow-md`}
+            onClick={handleChat}
+            disabled={loading || isRecording || !text.trim()}
+            title="Send Message"
+          >
+            <FaPaperPlane className="text-lg md:text-xl" />
+          </button>
+          <button
+            className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-[#00a884] bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-all hover:bg-[#008f6f] hover:scale-105 disabled:bg-gray-300 disabled:border-gray-300 disabled:cursor-not-allowed shadow-md`}
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={!isRecording && loading}
+            title={isRecording ? "Stop Recording" : "Start Voice Recording"}
+          >
+            {isRecording ? (
+              <FaMicrophoneSlash className="text-lg md:text-xl" />
+            ) : (
+              <FaMicrophone className="text-lg md:text-xl" />
+            )}
+          </button>
+          <button
+            className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-[#00a884] bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-all hover:bg-[#008f6f] hover:scale-105 disabled:bg-gray-300 disabled:border-gray-300 disabled:cursor-not-allowed shadow-md`}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || isRecording}
+            title="Upload Prescription Photo"
+          >
+            <FaCamera className="text-lg md:text-xl" />
+          </button>
+        </div>
         <input
           type="file"
           ref={fileInputRef}
