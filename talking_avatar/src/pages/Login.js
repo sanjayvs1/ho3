@@ -15,13 +15,13 @@ const Login = () => {
     const checkExistingSession = () => {
       const token = localStorage.getItem('authToken');
       const sessionExpiry = localStorage.getItem('sessionExpiry');
-      
+
       if (token && sessionExpiry && new Date(sessionExpiry) > new Date()) {
         // Valid session exists, redirect to home
         navigate('/');
       }
     };
-    
+
     checkExistingSession();
   }, [navigate]);
 
@@ -29,23 +29,23 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
+
       // Generate token
       const token = btoa(userCredential.user.uid + ':' + Date.now());
-      
+
       // Set session expiry (14 days from now)
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + 14);
-      
+
       // Store user data in localStorage
       localStorage.setItem('authToken', token);
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userId', userCredential.user.uid);
       localStorage.setItem('sessionExpiry', expiryDate.toISOString());
-      
+
       navigate('/'); // Redirect to home after login
     } catch (err) {
       // Simplify error messages for better readability
@@ -70,13 +70,13 @@ const Login = () => {
           </h1>
           <p className="text-blue-600 text-lg">Companion Care Services</p>
         </div>
-        
+
         {error && (
           <div className="bg-red-50 p-4 rounded-lg mb-6 border-l-4 border-red-400" role="alert">
             <p className="text-red-700 text-base">{error}</p>
           </div>
         )}
-        
+
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-lg font-medium text-gray-700 mb-2">
@@ -94,15 +94,15 @@ const Login = () => {
               placeholder="yourname@example.com"
             />
           </div>
-          
+
           <div>
             <div className="flex justify-between mb-2">
               <label htmlFor="password" className="block text-lg font-medium text-gray-700">
                 Password
               </label>
-              <Link to="/forgot-password" className="text-blue-600 hover:underline text-base">
+              {/* <Link to="/forgot-password" className="text-blue-600 hover:underline text-base">
                 Forgot Password?
-              </Link>
+              </Link> */}
             </div>
             <input
               type="password"
@@ -116,7 +116,7 @@ const Login = () => {
               placeholder="••••••••"
             />
           </div>
-          
+
           <div className="flex items-center">
             <input
               id="remember-me"
@@ -128,7 +128,7 @@ const Login = () => {
               Keep me signed in
             </label>
           </div>
-          
+
           <button
             type="submit"
             disabled={loading}
@@ -137,7 +137,7 @@ const Login = () => {
             {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
-        
+
         <p className="mt-6 text-center text-lg text-gray-700">
           Don't have an account?{' '}
           <Link to="/register" className="text-blue-600 hover:underline font-medium">
