@@ -7,6 +7,8 @@ const fs = require("fs");
 const speechSdk = require("microsoft-cognitiveservices-speech-sdk");
 const ffmpeg = require("fluent-ffmpeg");
 const {AssemblyAI} = require("assemblyai");
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const { Groq } = require("groq-sdk");
 
 
 /* GET home page. */
@@ -47,6 +49,74 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
     return res.status(500).json({ error: error.message });
   } finally {
     // Clean up uploaded file whether transcription succeeded or failed
+    if (req.file && req.file.path) {
+      fs.unlinkSync(req.file.path);
+    }
+  }
+});
+
+// Function to get Groq response
+async function getGroqResponse(prompt) {
+  const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY
+  });
+
+  try {
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "gemma2-9b-it",
+      temperature: 0.7,
+      max_tokens: 1024,
+    });
+
+    return chatCompletion.choices[0]?.message?.content || "No response generated";
+  } catch (error) {
+    console.error("Error getting Groq response:", error);
+    throw error;
+  }
+}
+
+// Route to handle Groq prompts
+router.post("/groq", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+
+    const response = await getGroqResponse(prompt);
+    res.json({ response });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route to handle the complete flow: Speech-to-Text -> Groq -> Text-to-Speech
+router.post("/chat", upload.single("audio"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+
+  try {
+    // Step 1: Transcribe the audio
+    const transcript = await transcribeAudio(req.file.path);
+    
+    // Step 2: Get Groq response
+    const groqResponse = await getGroqResponse(transcript);
+    
+    // Step 3: Convert Groq response to speech
+    const audioResult = await textToSpeech(groqResponse);
+    
+    return res.json({ 
+      transcript: transcript,
+      groqResponse: groqResponse,
+      audioUrl: audioResult.filename
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  } finally {
+    // Clean up uploaded file
     if (req.file && req.file.path) {
       fs.unlinkSync(req.file.path);
     }
