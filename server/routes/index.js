@@ -69,20 +69,18 @@ async function getGroqResponse(prompt) {
     apiKey: process.env.GROQ_API_KEY
   });
 
-  const systemPrompt = `\nYou are an Female AI assistant aimed at helping out the elderly. Reply in short and concise answers.`; 
-
-  // Initialize chat history with system prompt if empty
-  if (chatHistory.length === 0) {
-    chatHistory.push({ role: "system", content: systemPrompt });
-  }
+  const systemPrompt = `You are a caring and patient AI companion for seniors. Always respond with warmth, clarity, and respect. Keep answers simple and encouraging. Speak slowly and clearly, using everyday language. Focus on being helpful while maintaining a positive, cheerful tone. If there's confusion, gently ask for clarification. Remember to be extra patient and reassuring in all interactions. You also have access to previous chats. Keep the responses short.`;
 
   chatHistory.push({ role: "user", content: prompt });
   if (chatHistory.length > 10) {
     chatHistory.shift(); // Remove the oldest message
   }
+
+  const finalPrompt = chatHistory
+  finalPrompt.unshift({ role: "system", content: systemPrompt });
   try {
     const chatCompletion = await groq.chat.completions.create({
-      messages: chatHistory,
+      messages: finalPrompt,
       model: "gemma2-9b-it",
       temperature: 0.7,
       max_tokens: 1024,

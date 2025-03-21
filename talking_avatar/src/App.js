@@ -255,132 +255,6 @@ function makeSpeech(text) {
   return axios.post(host + "/talk", { text });
 }
 
-// Updated styles with transparent chat background
-const STYLES = {
-  container: {
-    height: "100vh",
-    width: "100vw",
-    display: "flex",
-    flexDirection: "column",
-    background: "transparent",
-    fontFamily: "Segoe UI, sans-serif",
-    position: "relative",
-    overflow: "hidden",
-  },
-  chatArea: {
-    maxHeight: "30vh",
-    overflowY: "auto",
-    padding: "10px",
-    background: "transparent", // Fully transparent to show model
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    zIndex: 1,
-    position: "absolute",
-    bottom: "60px",
-    left: "10px",
-    right: "10px",
-    borderRadius: "8px",
-  },
-  message: {
-    maxWidth: "80%",
-    padding: "8px 12px",
-    borderRadius: "6px",
-    fontSize: "0.9em",
-    lineHeight: "1.3",
-    wordBreak: "break-word",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-  },
-  userMessage: {
-    background: "#dcf8c6", // Green for user
-    alignSelf: "flex-end",
-  },
-  aiMessage: {
-    background: "#e3f2fd", // Light blue for AI
-    alignSelf: "flex-start",
-  },
-  inputArea: {
-    display: "flex",
-    alignItems: "center",
-    padding: "10px",
-    background: "rgba(240, 242, 245, 0.95)",
-    borderTop: "1px solid #d1d7db",
-    boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
-    zIndex: 1,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  textInput: {
-    flex: 1,
-    padding: "10px 12px",
-    border: "none",
-    borderRadius: "20px",
-    background: "#ffffff",
-    marginRight: "8px",
-    fontSize: "0.9em",
-    outline: "none",
-    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)",
-  },
-  button: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "50%",
-    border: "none",
-    background: "#00a884",
-    color: "white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    transition: "background 0.2s",
-    marginRight: "5px",
-  },
-  buttonDisabled: {
-    background: "#cccccc",
-    cursor: "not-allowed",
-  },
-  loading: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    color: "#00a884",
-    fontSize: "1.2em",
-    zIndex: 1000,
-  },
-  canvas: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    zIndex: 0,
-  },
-  "@media (max-width: 768px)": {
-    chatArea: {
-      maxHeight: "25vh",
-      padding: "8px",
-    },
-    message: {
-      fontSize: "0.8em",
-      padding: "6px 10px",
-    },
-    inputArea: {
-      padding: "8px",
-    },
-    textInput: {
-      fontSize: "0.8em",
-      padding: "8px 10px",
-    },
-    button: {
-      width: "32px",
-      height: "32px",
-    },
-  },
-};
-
 function App() {
   const audioPlayer = useRef();
   const chatAreaRef = useRef(null);
@@ -526,10 +400,10 @@ function App() {
   };
 
   return (
-    <div style={STYLES.container}>
+    <div className="h-screen w-screen flex flex-col bg-transparent font-sans relative overflow-hidden">
       <Canvas
         dpr={window.devicePixelRatio}
-        style={STYLES.canvas}
+        className="absolute top-0 left-0 w-full h-full z-0"
         onCreated={(ctx) => {
           ctx.gl.physicallyCorrectLights = true;
         }}
@@ -556,23 +430,27 @@ function App() {
         </Suspense>
       </Canvas>
 
-      <div style={STYLES.chatArea} ref={chatAreaRef}>
+      <div 
+        ref={chatAreaRef}
+        className="max-h-[30vh] overflow-y-auto p-2.5 bg-transparent flex flex-col gap-2 z-10 absolute bottom-[60px] left-2.5 right-2.5 rounded-lg"
+      >
         {messages.map((msg, index) => (
           <div
             key={index}
-            style={{
-              ...STYLES.message,
-              ...(msg.isUser ? STYLES.userMessage : STYLES.aiMessage),
-            }}
+            className={`max-w-[80%] p-2 rounded-md text-sm leading-relaxed break-words shadow-sm ${
+              msg.isUser 
+                ? "bg-[#dcf8c6] self-end" 
+                : "bg-[#e3f2fd] self-start"
+            }`}
           >
             {msg.content}
           </div>
         ))}
       </div>
 
-      <div style={STYLES.inputArea}>
+      <div className="flex items-center p-2.5 bg-[rgba(240,242,245,0.95)] border-t border-[#d1d7db] shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-10 absolute bottom-0 left-0 right-0">
         <input
-          style={STYLES.textInput}
+          className="flex-1 px-3 py-2.5 border-none rounded-full bg-white mr-2 text-sm outline-none shadow-inner disabled:opacity-50"
           value={text}
           onChange={(e) => setText(e.target.value.substring(0, 200))}
           placeholder="Type a message..."
@@ -580,12 +458,7 @@ function App() {
           onKeyPress={(e) => e.key === "Enter" && handleChat()}
         />
         <button
-          style={{
-            ...STYLES.button,
-            ...(loading || isRecording || !text.trim()
-              ? STYLES.buttonDisabled
-              : {}),
-          }}
+          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors mr-1.5 disabled:bg-gray-300 disabled:cursor-not-allowed`}
           onClick={handleChat}
           disabled={loading || isRecording || !text.trim()}
           title="Send"
@@ -593,10 +466,7 @@ function App() {
           ➤
         </button>
         <button
-          style={{
-            ...STYLES.button,
-            ...(!isRecording && loading ? STYLES.buttonDisabled : {}),
-          }}
+          className={`w-9 h-9 rounded-full border-none bg-[#00a884] text-white flex items-center justify-center cursor-pointer transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed`}
           onClick={isRecording ? stopRecording : startRecording}
           disabled={!isRecording && loading}
           title={isRecording ? "Stop Recording" : "Start Recording"}
@@ -605,7 +475,11 @@ function App() {
         </button>
       </div>
 
-      {loading && <div style={STYLES.loading}>Loading...</div>}
+      {loading && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#00a884] text-lg z-[1000]">
+          Loading...
+        </div>
+      )}
 
       <ReactAudioPlayer
         src={audioSource}
