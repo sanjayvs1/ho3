@@ -3,14 +3,19 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import GuardianOnboarding from './pages/GuardianOnboarding'
+// import Avatar from './pages/Avatar'
+
 function Router() {
   return (
     <BrowserRouter>
-        <Routes>
-            <Route path='/'  element={<App/>}/>
-            <Route path='/login'  element={<Login/>}/>
-            <Route path='/register'  element={<Register/>}/>
-        </Routes>
+      <Routes>
+        <Route path='/' element={<App />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/register' element={<Register />} />
+        <Route path='/guardian-onboarding' element={<GuardianOnboarding />} />
+        {/* <Route path='/avatar' element={<Avatar />} /> */}
+      </Routes>
     </BrowserRouter>
   )
 }
