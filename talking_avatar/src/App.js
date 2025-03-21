@@ -315,12 +315,51 @@ function App() {
 
   }  
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [audioChunks, setAudioChunks] = useState([]);
+
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks = [];
+
+    recorder.ondataavailable = (e) => {
+      chunks.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+
+      try {
+        const response = await axios.post(host + '/transcribe', formData);
+        setText(response.data.text);
+      } catch (err) {
+        console.error('Transcription error:', err);
+      }
+    };
+
+    recorder.start();
+    setMediaRecorder(recorder);
+    setAudioChunks(chunks);
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    mediaRecorder.stop();
+    setIsRecording(false);
+  };
+
   return (
     <div className="full">
       <div style={STYLES.area}>
         <textarea rows={4} type="text" style={STYLES.text} value={text} onChange={(e) => setText(e.target.value.substring(0, 200))} />
         <button onClick={() => setSpeak(true)} style={STYLES.speak}> { speak? 'Running...': 'Speak' }</button>
-
+        <button onClick={isRecording ? stopRecording : startRecording} style={STYLES.speak}>
+          {isRecording ? 'Stop Recording' : 'Start Recording'}
+        </button>
       </div>
 
       <ReactAudioPlayer
@@ -328,36 +367,27 @@ function App() {
         ref={audioPlayer}
         onEnded={playerEnded}
         onCanPlayThrough={playerReady}
-        
-      />
-      
-      {/* <Stats /> */}
-    <Canvas dpr={2} onCreated={(ctx) => {
-        ctx.gl.physicallyCorrectLights = true;
-      }}>
-
-      <OrthographicCamera 
-      makeDefault
-      zoom={2000}
-      position={[0, 1.65, 1]}
       />
 
-      {/* <OrbitControls
-        target={[0, 1.65, 0]}
-      /> */}
+      <Canvas dpr={2} onCreated={(ctx) => {
+          ctx.gl.physicallyCorrectLights = true;
+        }}>
 
-      <Suspense fallback={null}>
-        <Environment background={false} files="/images/photo_studio_loft_hall_1k.hdr" />
-      </Suspense>
+        <OrthographicCamera 
+        makeDefault
+        zoom={2000}
+        position={[0, 1.65, 1]}
+        />
 
-      <Suspense fallback={null}>
-        <Bg />
-      </Suspense>
+        <Suspense fallback={null}>
+          <Environment background={false} files="/images/photo_studio_loft_hall_1k.hdr" />
+        </Suspense>
 
-      <Suspense fallback={null}>
+        <Suspense fallback={null}>
+          <Bg />
+        </Suspense>
 
-
-
+        <Suspense fallback={null}>
           <Avatar 
             avatar_url="/model.glb" 
             speak={speak} 
@@ -366,15 +396,11 @@ function App() {
             setAudioSource={setAudioSource}
             playing={playing}
             />
+        </Suspense>
 
-      
-      </Suspense>
-
-  
-
-  </Canvas>
-  <Loader dataInterpolation={(p) => `Loading... please wait`}  />
-  </div>
+      </Canvas>
+      <Loader dataInterpolation={(p) => `Loading... please wait`}  />
+    </div>
   )
 }
 

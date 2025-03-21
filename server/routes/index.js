@@ -11,6 +11,8 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const { Groq } = require("groq-sdk");
 
 
+const chatHistory = [];
+
 /* GET home page. */
 router.post("/talk", function (req, res, next) {
   textToSpeech(req.body.text, req.body.voice)
@@ -61,9 +63,14 @@ async function getGroqResponse(prompt) {
     apiKey: process.env.GROQ_API_KEY
   });
 
+  chatHistory.push({ role: "user", content: prompt });
+  if (chatHistory.length > 10) {
+    chatHistory.shift(); // Remove the oldest message
+  }
   try {
     const chatCompletion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+      // messages: [{ role: "user", content: prompt }],
+      messages: chatHistory,
       model: "gemma2-9b-it",
       temperature: 0.7,
       max_tokens: 1024,
