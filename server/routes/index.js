@@ -99,14 +99,10 @@ router.post("/groq", async (req, res) => {
 });
 
 // Route to handle the complete flow: Speech-to-Text -> Groq -> Text-to-Speech
-router.post("/chat", upload.single("audio"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "No file uploaded" });
-  }
+router.post("/chat", async (req, res) => {
+  const transcript = req.body.transcript;
 
   try {
-    // Step 1: Transcribe the audio
-    const transcript = await transcribeAudio(req.file.path);
     
     // Step 2: Get Groq response
     const groqResponse = await getGroqResponse(transcript);
