@@ -30,7 +30,8 @@ import {
   FaCamera,
   FaTimes,
   FaUser,
-  FaSignOutAlt
+  FaSignOutAlt,
+  FaMagic
 } from 'react-icons/fa';
 
 const _ = require("lodash");
@@ -288,6 +289,7 @@ function App() {
   const [editedPrescription, setEditedPrescription] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const [actionButtonState, setActionButtonState] = useState('idle');
 
   // Close menu when route changes
   useEffect(() => {
@@ -472,6 +474,57 @@ function App() {
     setEditedPrescription(newData);
   };
 
+  const validateAndFormatTime = (timeStr) => {
+    if (!timeStr) return "12:00"; // Default to noon if empty
+    
+    // If it's already in HH:mm format, validate it
+    if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr)) {
+      return timeStr;
+    }
+
+    // Try to parse the time string
+    let hours = 12; // Default to noon
+    let minutes = 0;
+    
+    // Handle different time formats
+    if (timeStr.includes(':')) {
+      const [h, m] = timeStr.split(':').map(Number);
+      if (!isNaN(h) && !isNaN(m)) {
+        hours = h;
+        minutes = m;
+      }
+    } else if (timeStr.includes('am') || timeStr.includes('pm')) {
+      // Handle 12-hour format
+      const isPM = timeStr.includes('pm');
+      const numStr = timeStr.replace(/[^0-9]/g, '');
+      hours = parseInt(numStr) || 12;
+      if (isPM && hours !== 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    } else {
+      // Try to parse as 24-hour number
+      const num = parseInt(timeStr);
+      if (!isNaN(num)) {
+        hours = Math.floor(num / 100);
+        minutes = num % 100;
+      }
+    }
+
+    // Validate and normalize hours and minutes
+    hours = hours % 24;
+    minutes = Math.min(59, Math.max(0, minutes));
+
+    // Format as 24-hour time
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  const handleTimeChange = (index, value) => {
+    const formattedTime = validateAndFormatTime(value);
+    handleFieldChange(
+      ["patientInfo", "treatmentDetails", index, "timing"],
+      formattedTime
+    );
+  };
+
   const saveToFirebase = async () => {
     try {
       // Update the prescription using the API route
@@ -480,8 +533,20 @@ function App() {
         editedPrescription
       );
 
+      // Send SMS notification for the first treatment detail
+      if (editedPrescription.patientInfo.treatmentDetails && editedPrescription.patientInfo.treatmentDetails.length > 0) {
+        const treatment = editedPrescription.patientInfo.treatmentDetails[0];
+        const smsData = {
+          time: treatment.timing,
+          phoneNumber: "+919967463620",
+          message: `Take your medication: ${treatment.medication}`
+        };
+
+        await axios.post(`${host}/sms/add`, smsData);
+      }
+
       if (response.status === 200) {
-        addMessage(`Prescription updated successfully`, false);
+        addMessage(`Prescription updated successfully and SMS notification sent`, false);
         setModalOpen(false);
       } else {
         throw new Error("Failed to update prescription");
@@ -489,6 +554,67 @@ function App() {
     } catch (error) {
       console.error("Prescription update error:", error);
       addMessage(`Error saving prescription: ${error.message}`, false);
+    }
+  };
+
+  const handleDynamicAction = async () => {
+    if (actionButtonState === 'idle') return;
+    
+    try {
+      switch (actionButtonState) {
+        case 'openApp':
+          // Open a specific app (example: health app)
+          window.location.href = 'healthapp://';
+          break;
+
+        case 'call':
+          // Make a phone call
+          window.location.href = 'tel:+919967463620';
+          break;
+
+        case 'sendSMS':
+          // Get current time and add 1 minute
+          const now = new Date();
+          const futureTime = new Date(now.getTime() + 60000); // Add 1 minute
+          const formattedTime = futureTime.toLocaleTimeString('en-US', { 
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+
+          // Send SMS with medication reminder
+          const smsData = {
+            time: formattedTime,
+            phoneNumber: "+919967463620",
+            message: "Take your medication"
+          };
+
+          await axios.post(`${host}/sms/add`, smsData);
+          addMessage("SMS reminder scheduled for 1 minute from now", false);
+          break;
+
+        case 'emergency':
+          // Send emergency SMS
+          const emergencySmsData = {
+            time: new Date().toLocaleTimeString('en-US', { 
+              hour12: false,
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            phoneNumber: "+919967463620",
+            message: "EMERGENCY: Please contact emergency services immediately"
+          };
+
+          await axios.post(`${host}/sms/add`, emergencySmsData);
+          addMessage("Emergency SMS sent", false);
+          break;
+
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error("Dynamic action error:", error);
+      addMessage(`Error performing action: ${error.message}`, false);
     }
   };
 
@@ -614,6 +740,22 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Add this new button component */}
+      <button
+        onClick={handleDynamicAction}
+        className={`fixed right-4 top-1/2 transform -translate-y-1/2 z-50 
+          w-16 h-16 rounded-full bg-white border-2 border-black
+          flex items-center justify-center
+          shadow-lg transition-all duration-300
+          hover:scale-110 active:scale-95
+          ${actionButtonState !== 'idle' ? 'animate-pulse' : ''}
+          group`}
+      >
+        <div className="absolute inset-0 rounded-full border-2 border-black animate-ping opacity-75"></div>
+        <div className="absolute inset-0 rounded-full border-2 border-black animate-pulse"></div>
+        <FaMagic className="text-2xl text-black group-hover:text-white transition-colors duration-300" />
+      </button>
 
       <Canvas
         dpr={window.devicePixelRatio}
@@ -965,24 +1107,20 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium">
-                            Timing
+                            Timing (24-hour format)
                           </label>
                           <input
-                            type="text"
-                            value={treatment.timing}
-                            onChange={(e) =>
-                              handleFieldChange(
-                                [
-                                  "patientInfo",
-                                  "treatmentDetails",
-                                  index,
-                                  "timing",
-                                ],
-                                e.target.value
-                              )
-                            }
+                            type="time"
+                            value={treatment.timing || "12:00"}
+                            onChange={(e) => handleTimeChange(index, e.target.value)}
                             className="w-full p-2 border rounded"
+                            step="300"
+                            min="00:00"
+                            max="23:59"
                           />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Select time in 24-hour format (00:00-23:59)
+                          </p>
                         </div>
                       </div>
                     )
