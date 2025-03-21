@@ -34,20 +34,20 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
     hairNormalTexture,
     hairRoughnessTexture,
   ] = useTexture([
-    "/images/body.webp",
-    "/images/eyes.webp",
-    "/images/teeth_diffuse.webp",
-    "/images/body_specular.webp",
-    "/images/body_roughness.webp",
-    "/images/body_normal.webp",
-    "/images/teeth_normal.webp",
-    "/images/h_color.webp",
-    "/images/tshirt_diffuse.webp",
-    "/images/tshirt_normal.webp",
-    "/images/tshirt_roughness.webp",
-    "/images/h_alpha.webp",
-    "/images/h_normal.webp",
-    "/images/h_roughness.webp",
+    '/images/body.webp',
+    '/images/eyes.webp',
+    '/images/teeth_diffuse.webp',
+    '/images/body_specular.webp',
+    '/images/body_roughness.webp',
+    '/images/body_normal.webp',
+    '/images/teeth_normal.webp',
+    '/images/h_color.webp',
+    '/images/tshirt_diffuse.webp',
+    '/images/tshirt_normal.webp',
+    '/images/tshirt_roughness.webp',
+    '/images/h_alpha.webp',
+    '/images/h_normal.webp',
+    '/images/h_roughness.webp',
   ]);
 
   _.each([
@@ -80,7 +80,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
       node.receiveShadow = true;
       node.frustumCulled = false;
 
-      if (node.name.includes("Body")) {
+      if (node.name.includes('Body')) {
         node.castShadow = true;
         node.receiveShadow = true;
         node.material = new MeshPhysicalMaterial();
@@ -93,14 +93,14 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.8;
       }
 
-      if (node.name.includes("Eyes")) {
+      if (node.name.includes('Eyes')) {
         node.material = new MeshStandardMaterial();
         node.material.map = eyesTexture;
         node.material.roughness = 0.1;
         node.material.envMapIntensity = 0.5;
       }
 
-      if (node.name.includes("Brows")) {
+      if (node.name.includes('Brows')) {
         node.material = new LineBasicMaterial({ color: 0x000000 });
         node.material.linewidth = 1;
         node.material.opacity = 0.5;
@@ -108,7 +108,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.visible = false;
       }
 
-      if (node.name.includes("Teeth")) {
+      if (node.name.includes('Teeth')) {
         node.receiveShadow = true;
         node.castShadow = true;
         node.material = new MeshStandardMaterial();
@@ -118,7 +118,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.7;
       }
 
-      if (node.name.includes("Hair")) {
+      if (node.name.includes('Hair')) {
         node.material = new MeshStandardMaterial();
         node.material.map = hairTexture;
         node.material.alphaMap = hairAlphaTexture;
@@ -131,7 +131,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.3;
       }
 
-      if (node.name.includes("TSHIRT")) {
+      if (node.name.includes('TSHIRT')) {
         node.material = new MeshStandardMaterial();
         node.material.map = tshirtDiffuseTexture;
         node.material.roughnessMap = tshirtRoughnessTexture;
@@ -140,7 +140,7 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
         node.material.envMapIntensity = 0.5;
       }
 
-      if (node.name.includes("TeethLower")) {
+      if (node.name.includes('TeethLower')) {
         morphTargetDictionaryLowerTeeth = node.morphTargetDictionary;
       }
     }
@@ -173,13 +173,13 @@ function Avatar({ avatar_url, speak, setSpeak, text, setAudioSource, playing }) 
   let { clips: idleClips } = useAnimations(idleFbx.animations);
 
   idleClips[0].tracks = _.filter(idleClips[0].tracks, (track) =>
-    track.name.includes("Head") || track.name.includes("Neck") || track.name.includes("Spine2")
+    track.name.includes('Head') || track.name.includes('Neck') || track.name.includes('Spine2')
   );
 
   idleClips[0].tracks = _.map(idleClips[0].tracks, (track) => {
-    if (track.name.includes("Head")) track.name = "head.quaternion";
-    if (track.name.includes("Neck")) track.name = "neck.quaternion";
-    if (track.name.includes("Spine")) track.name = "spine2.quaternion";
+    if (track.name.includes('Head')) track.name = 'head.quaternion';
+    if (track.name.includes('Neck')) track.name = 'neck.quaternion';
+    if (track.name.includes('Spine')) track.name = 'spine2.quaternion';
     return track;
   });
 
@@ -253,42 +253,75 @@ const STYLES = {
     fontSize: '1em',
     transition: 'background 0.3s ease',
   },
+  audioControls: {
+    marginTop: '10px',
+    display: 'flex',
+    gap: '10px',
+  },
 };
 
 function App() {
   const audioPlayer = useRef();
   const [speak, setSpeak] = useState(false);
   const [text, setText] = useState(
-    "My name is Arwen. I'm a virtual human who can speak whatever you type here along with realistic facial movements."
+    'My name is Arwen. I’m a virtual human who can speak whatever you type here along with realistic facial movements.'
   );
   const [audioSource, setAudioSource] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
 
-  // End of play
-  function playerEnded() {
-    setAudioSource(null);
+  const playerEnded = () => {
     setSpeak(false);
     setPlaying(false);
-  }
+  };
 
-  // Player is ready
-  function playerReady() {
+  const playerReady = () => {
     audioPlayer.current.audioEl.current.play();
     setPlaying(true);
-  }
+    setSpeak(true); // Sync avatar animation with playback
+  };
 
-  // Start recording and send to /chat
+  const togglePlayPause = () => {
+    const audioEl = audioPlayer.current.audioEl.current;
+    if (playing) {
+      audioEl.pause();
+      setPlaying(false);
+      setSpeak(false);
+    } else {
+      audioEl.play();
+      setPlaying(true);
+      setSpeak(true);
+    }
+  };
+
+  const replayAudio = () => {
+    const audioEl = audioPlayer.current.audioEl.current;
+    audioEl.currentTime = 0;
+    audioEl.play();
+    setPlaying(true);
+    setSpeak(true);
+  };
+
+  const handleSpeak = async () => {
+    setSpeak(true);
+    try {
+      const response = await makeSpeech(text);
+      const { filename } = response.data;
+      setAudioSource(`${host}${filename}`);
+    } catch (err) {
+      console.error('Speak error:', err);
+      setSpeak(false);
+    }
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       const chunks = [];
 
-      recorder.ondataavailable = (e) => {
-        chunks.push(e.data);
-      };
+      recorder.ondataavailable = (e) => chunks.push(e.data);
 
       recorder.onstop = async () => {
         const audioBlob = new Blob(chunks, { type: 'audio/wav' });
@@ -296,19 +329,24 @@ function App() {
         formData.append('audio', audioBlob);
 
         try {
-          const response = await axios.post(`${host}/chat`, formData);
-          const { groqResponse, audioUrl } = response.data;
+          // Step 1: Send to /transcribe
+          const transcribeResponse = await axios.post(`${host}/transcribe`, formData);
+          const { transcript } = transcribeResponse.data;
+          setText(transcript); // Update UI with transcribed text
 
-          // Set text to groqResponse and audioSource to the returned audio URL
-          setText(groqResponse);
+          // Step 2: Send to /chat
+          const chatResponse = await axios.post(`${host}/chat`, formData);
+          const { groqResponse, audioUrl } = chatResponse.data;
+          console.log(groqResponse)
+          console.log(audioUrl)
+          // setText(groqResponse); // Update UI with Groq response
           setAudioSource(`${host}${audioUrl}`);
-          setSpeak(true); // Trigger avatar animation and audio playback
+          setSpeak(true); // Trigger playback and animation
         } catch (err) {
-          console.error('Chat error:', err);
+          console.error('Recording error:', err);
           setSpeak(false);
         }
 
-        // Clean up stream
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -320,7 +358,6 @@ function App() {
     }
   };
 
-  // Stop recording
   const stopRecording = () => {
     if (mediaRecorder) {
       mediaRecorder.stop();
@@ -333,17 +370,12 @@ function App() {
       <div style={STYLES.area}>
         <textarea
           rows={4}
-          type="text"
           style={STYLES.text}
           value={text}
           onChange={(e) => setText(e.target.value.substring(0, 200))}
           placeholder="Type your message here..."
         />
-        <button
-          onClick={() => setSpeak(true)}
-          style={STYLES.button}
-          disabled={speak}
-        >
+        <button onClick={handleSpeak} style={STYLES.button} disabled={speak}>
           {speak ? 'Speaking...' : 'Speak'}
         </button>
         <button
@@ -352,6 +384,18 @@ function App() {
         >
           {isRecording ? 'Stop Recording' : 'Start Recording'}
         </button>
+
+        {/* Audio controls */}
+        {audioSource && (
+          <div style={STYLES.audioControls}>
+            <button onClick={togglePlayPause} style={STYLES.button}>
+              {playing ? 'Pause' : 'Play'}
+            </button>
+            <button onClick={replayAudio} style={STYLES.button}>
+              Replay
+            </button>
+          </div>
+        )}
       </div>
 
       <ReactAudioPlayer
