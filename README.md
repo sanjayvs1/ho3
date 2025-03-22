@@ -83,4 +83,4 @@ The application checks for updates when online and installs them automatically d
 
 ## 🤝 Contributing
 
-Check out our PWA app at : https://ho3-phi.vercel.app/
+Check out our PWA app at : [karuna-ai.vercel.app](https://karuna-ai.vercel.app)
