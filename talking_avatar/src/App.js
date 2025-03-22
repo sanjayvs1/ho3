@@ -32,6 +32,7 @@ import {
   FaUser,
   FaSignOutAlt,
   FaMagic,
+  FaTv,
 } from "react-icons/fa";
 
 const _ = require("lodash");
@@ -808,8 +809,8 @@ function App() {
             </div>
 
             {/* Navigation Links */}
-            <nav className="flex-1 p-4 space-y-3">
-              <Link
+            <nav className="flex-1 p-4 space-y-1">
+              {/* <Link
                 to="/profile"
                 className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
                   location.pathname === "/profile"
@@ -819,7 +820,7 @@ function App() {
               >
                 <FaUser className="mr-3 text-2xl" />
                 Profile
-              </Link>
+              </Link> */}
               <Link
                 to="/market"
                 className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
