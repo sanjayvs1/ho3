@@ -6,7 +6,7 @@ const multer = require("multer");
 const fs = require("fs");
 const speechSdk = require("microsoft-cognitiveservices-speech-sdk");
 const ffmpeg = require("fluent-ffmpeg");
-const {AssemblyAI} = require("assemblyai");
+const { AssemblyAI } = require("assemblyai");
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { Groq } = require("groq-sdk");
 
@@ -32,28 +32,93 @@ const client = new AssemblyAI({
   apiKey: '7e992d21f92949328f7dac27102ec73b',
 });
 
+// Azure Speech Config
+const speechConfig = speechSdk.SpeechConfig.fromSubscription(
+  process.env.AZURE_KEY,
+  process.env.AZURE_REGION
+);
+speechConfig.speechRecognitionLanguage = "en-US";
 
-// Speech-to-Text function
-async function transcribeAudio(filePath) {
- const transcript = await client.transcripts.transcribe({ audio: filePath, language_code : 'hi' });
- return transcript.text;
+// Azure Speech-to-Text function
+async function transcribeAudio_azure(filePath) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create audio config from the file
+      const audioConfig = speechSdk.AudioConfig.fromWavFileInput(fs.readFileSync(filePath));
+      const speechRecognizer = new speechSdk.SpeechRecognizer(speechConfig, audioConfig);
+
+      console.debug('Starting Azure speech recognition...');
+
+      speechRecognizer.recognizeOnceAsync(result => {
+        switch (result.reason) {
+          case speechSdk.ResultReason.RecognizedSpeech:
+            console.debug('Speech recognized successfully');
+            resolve(result.text);
+            break;
+          case speechSdk.ResultReason.NoMatch:
+            console.error('Speech could not be recognized');
+            reject(new Error("Speech could not be recognized."));
+            break;
+          case speechSdk.ResultReason.Canceled:
+            const cancellation = speechSdk.CancellationDetails.fromResult(result);
+            console.error(`Recognition canceled: ${cancellation.reason}`);
+
+            if (cancellation.reason == speechSdk.CancellationReason.Error) {
+              console.error(`Error code: ${cancellation.ErrorCode}`);
+              console.error(`Error details: ${cancellation.errorDetails}`);
+            }
+
+            reject(new Error(`Recognition canceled: ${cancellation.errorDetails}`));
+            break;
+        }
+        speechRecognizer.close();
+      });
+    } catch (error) {
+      console.error('Error in Azure transcription:', error);
+      reject(error);
+    }
+  });
 }
 
-// Route to handle MP3 file upload and transcription
+// Updated transcribe route
 router.post("/transcribe", upload.single("audio"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
 
+  console.debug('File received:', req.file.path);
+
   try {
-    const transcript = await transcribeAudio(req.file.path);
-    return res.json({ transcript });
+    // Try Azure transcription first
+    try {
+      console.debug('Attempting Azure transcription...');
+      const transcript = await transcribeAudio_azure(req.file.path);
+      console.debug('Azure transcription successful:', transcript);
+      return res.json({ transcript });
+    } catch (azureError) {
+      // If Azure fails, log error and fall back to AssemblyAI
+      console.error('Azure transcription failed:', azureError);
+      console.debug('Falling back to AssemblyAI...');
+
+      const transcript = await transcribeAudio(req.file.path);
+      console.debug('AssemblyAI transcription successful:', transcript);
+      return res.json({ transcript });
+    }
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('Transcription error:', error);
+    return res.status(500).json({
+      error: error.message,
+      details: error.stack
+    });
   } finally {
-    // Clean up uploaded file whether transcription succeeded or failed
+    // Clean up uploaded file
     if (req.file && req.file.path) {
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+        console.debug('Cleaned up file:', req.file.path);
+      } catch (unlinkError) {
+        console.error('Error cleaning up file:', unlinkError);
+      }
     }
   }
 });
@@ -69,7 +134,7 @@ async function getGroqResponse(prompt) {
     apiKey: process.env.GROQ_API_KEY
   });
 
-  const systemPrompt = `You are a caring and patient AI companion for seniors. Always respond with warmth, clarity, and respect. Keep answers simple and encouraging. Speak slowly and clearly, using everyday language. Focus on being helpful while maintaining a positive, cheerful tone. If there's confusion, gently ask for clarification. Remember to be extra patient and reassuring in all interactions. You also have access to previous chats. Keep the responses short.`;
+  const systemPrompt = `You are a caring and patient AI companion for seniors. Always respond with warmth, clarity, and respect. Keep answers simple and encouraging. Speak slowly and clearly, using everyday language. Focus on being helpful while maintaining a positive, cheerful tone. If there's confusion, gently ask for clarification. Remember to be extra patient and reassuring in all interactions. You also have access to previous chats. Keep the responses short. Always be open to increase chats . Sometimes complement their voice , talk about good weather etc`;
 
   chatHistory.push({ role: "user", content: prompt });
   if (chatHistory.length > 10) {
@@ -118,11 +183,11 @@ router.post("/chat", async (req, res) => {
   try {
     // First get the Groq response
     const groqResponse = await getGroqResponse(transcript);
-    
+
     // Then convert to speech
     const audioResult = await textToSpeech(groqResponse);
-    
-    return res.json({ 
+
+    return res.json({
       transcript: transcript,
       groqResponse: groqResponse,
       audioUrl: audioResult.filename

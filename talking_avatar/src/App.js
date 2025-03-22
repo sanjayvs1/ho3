@@ -290,6 +290,7 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const [actionButtonState, setActionButtonState] = useState('idle');
+  const [actionData, setActionData] = useState(null);
 
   // Close menu when route changes
   useEffect(() => {
@@ -376,50 +377,141 @@ function App() {
   const startRecording = async () => {
     if (isRecording || loading) return;
     setLoading(true);
+    console.debug('Starting recording...');
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      console.debug('Audio stream obtained');
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 128000
+      });
+
       const chunks = [];
 
-      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.ondataavailable = (e) => {
+        console.debug('Recording data chunk received:', e.data.size, 'bytes');
+        chunks.push(e.data);
+      };
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: "audio/wav" });
+        console.debug('Recording stopped, processing audio...');
+        const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
         const formData = new FormData();
-        formData.append("audio", audioBlob);
+        formData.append('audio', audioBlob, 'recording.webm');
 
         try {
-          const transcribeResponse = await axios.post(
-            `${host}/transcribe`,
-            formData
-          );
+          // Step 1: Get transcription
+          const transcribeResponse = await axios.post(`${host}/transcribe`, formData);
           const { transcript } = transcribeResponse.data;
-          if (!transcript) throw new Error("No transcript received");
-          setText(transcript);
-          await handleChat();
+
+          if (!transcript) throw new Error('No transcript received');
+
+          // Step 2: Add user's transcribed message to chat
+          addMessage(transcript, true);
+
+          // Step 3: Get AI response with structured prompt
+          console.debug('Getting AI response...');
+          const structuredPrompt = `
+            Based on this elderly person's message: "${transcript}"
+            Generate ONLY a JSON object with these fields:
+            - response: A warm, clear, and simple response (required)
+            - action: One of these values if relevant: "openApp", "call", "sendSMS", "emergency", or null
+            - data: Additional data for the action (e.g., "https://chat.whatsapp.com" for openApp)
+            
+            If they need:
+            - Social connection → suggest opening WhatsApp (openApp)
+            - Medical emergency → suggest emergency action
+            - Medicine reminder → suggest sendSMS
+            - Immediate help → suggest call
+            
+            Return ONLY the JSON object, no other text.
+          `;
+
+          const chatResponse = await axios.post(`${host}/groq`, { prompt: structuredPrompt });
+          const { response: groqResponse } = chatResponse.data;
+          console.log("groq", groqResponse);
+          // Clean and parse the JSON response
+          try {
+            // Remove ```json and ``` from the response if present
+            const cleanJson = groqResponse
+              .replace(/```json\s*/g, '')  // Remove all instances of ```json
+              .replace(/```\s*/g, '')      // Remove all instances of ```
+              .trim();                     // Remove any whitespace
+
+            const parsedResponse = JSON.parse(cleanJson);
+            console.debug('Parsed AI response:', parsedResponse);
+
+            if (!parsedResponse || !parsedResponse.response) {
+              throw new Error('Invalid response format');
+            }
+
+            // Step 4: Add AI response to messages
+            addMessage(parsedResponse.response, false);
+
+            // Step 5: Handle action if present
+            if (parsedResponse.action) {
+              setActionButtonState(parsedResponse.action);
+              if (parsedResponse.data) {
+                setActionData(parsedResponse.data);
+              }
+              // Automatically trigger the action
+              setTimeout(() => handleDynamicAction(), 1000);
+            } else {
+              setActionButtonState('idle');
+            }
+
+            // Step 6: Generate and play speech for AI response only
+            console.debug('Generating speech for AI response...');
+            const speechResponse = await makeSpeech(parsedResponse.response);
+            const { filename } = speechResponse.data;
+
+            setAudioSource(`${host}${filename}`);
+            setSpeak(true);
+
+          } catch (jsonError) {
+            console.error('JSON parsing error:', jsonError);
+            // If JSON parsing fails, treat the entire response as a simple message
+            addMessage("I'm sorry, I encountered an error processing that. Could you please try again?", false);
+            setActionButtonState('idle');
+            setSpeak(false);
+          }
+
         } catch (err) {
-          console.error("Recording error:", err);
-          addMessage("Error transcribing audio", false);
+          console.error('Processing error:', err);
+          addMessage("I'm sorry, I couldn't process your message. Please try again.", false);
           setSpeak(false);
         } finally {
           setLoading(false);
-          stream.getTracks().forEach((track) => track.stop());
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.debug('Audio track stopped:', track.kind);
+          });
         }
       };
 
       recorder.onerror = (err) => {
-        console.error("Recorder error:", err);
+        console.error('MediaRecorder error:', err.name, err.message);
         setIsRecording(false);
         setLoading(false);
-        addMessage("Recording error occurred", false);
+        addMessage(`Recording error: ${err.message}`, false);
       };
 
-      recorder.start();
+      // Start recording
+      recorder.start(10);
+      console.debug('Recording started');
       setMediaRecorder(recorder);
       setIsRecording(true);
+
     } catch (err) {
-      console.error("Recording initialization error:", err);
-      addMessage("Failed to start recording", false);
+      console.error('Recording initialization error:', err);
+      addMessage(
+        `Failed to start recording: ${err.name === 'NotAllowedError' ?
+          'Microphone permission denied' :
+          err.message}`,
+        false
+      );
       setLoading(false);
     }
   };
@@ -476,7 +568,7 @@ function App() {
 
   const validateAndFormatTime = (timeStr) => {
     if (!timeStr) return "12:00"; // Default to noon if empty
-    
+
     // If it's already in HH:mm format, validate it
     if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr)) {
       return timeStr;
@@ -485,7 +577,7 @@ function App() {
     // Try to parse the time string
     let hours = 12; // Default to noon
     let minutes = 0;
-    
+
     // Handle different time formats
     if (timeStr.includes(':')) {
       const [h, m] = timeStr.split(':').map(Number);
@@ -559,16 +651,17 @@ function App() {
 
   const handleDynamicAction = async () => {
     if (actionButtonState === 'idle') return;
-    
+
     try {
       switch (actionButtonState) {
         case 'openApp':
-          // Open a specific app (example: health app)
-          window.location.href = 'healthapp://';
+          // Open the stored URL (e.g., WhatsApp)
+          if (actionData) {
+            window.location.href = actionData;
+          }
           break;
 
         case 'call':
-          // Make a phone call
           window.location.href = 'tel:+919967463620';
           break;
 
@@ -576,7 +669,7 @@ function App() {
           // Get current time and add 1 minute
           const now = new Date();
           const futureTime = new Date(now.getTime() + 60000); // Add 1 minute
-          const formattedTime = futureTime.toLocaleTimeString('en-US', { 
+          const formattedTime = futureTime.toLocaleTimeString('en-US', {
             hour12: false,
             hour: '2-digit',
             minute: '2-digit'
@@ -596,7 +689,7 @@ function App() {
         case 'emergency':
           // Send emergency SMS
           const emergencySmsData = {
-            time: new Date().toLocaleTimeString('en-US', { 
+            time: new Date().toLocaleTimeString('en-US', {
               hour12: false,
               hour: '2-digit',
               minute: '2-digit'
