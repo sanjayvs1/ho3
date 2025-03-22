@@ -39,6 +39,29 @@ const speechConfig = speechSdk.SpeechConfig.fromSubscription(
 );
 speechConfig.speechRecognitionLanguage = "en-US";
 
+
+async function transcribeAudio(filePath) {
+  try {
+    console.debug('Starting AssemblyAI transcription...');
+    
+    // Read the file as a buffer
+    const audioFile = fs.readFileSync(filePath);
+    
+    // Create transcript directly with the file data
+    const transcript = await client.transcripts.transcribe({
+      audio: audioFile,
+      language_code: 'en'
+    });
+
+    console.debug('AssemblyAI transcription result:', transcript);
+    return transcript.text;
+    
+  } catch (error) {
+    console.error('AssemblyAI transcription error:', error);
+    throw error;
+  }
+}
+
 // Azure Speech-to-Text function
 async function transcribeAudio_azure(filePath) {
   return new Promise((resolve, reject) => {
@@ -89,21 +112,10 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
   console.debug('File received:', req.file.path);
 
   try {
-    // Try Azure transcription first
-    try {
-      console.debug('Attempting Azure transcription...');
-      const transcript = await transcribeAudio_azure(req.file.path);
-      console.debug('Azure transcription successful:', transcript);
-      return res.json({ transcript });
-    } catch (azureError) {
-      // If Azure fails, log error and fall back to AssemblyAI
-      console.error('Azure transcription failed:', azureError);
-      console.debug('Falling back to AssemblyAI...');
-
-      const transcript = await transcribeAudio(req.file.path);
-      console.debug('AssemblyAI transcription successful:', transcript);
-      return res.json({ transcript });
-    }
+    // Use AssemblyAI directly, skip Azure
+    const transcript = await transcribeAudio(req.file.path);
+    console.debug('AssemblyAI transcription successful:', transcript);
+    return res.json({ transcript });
   } catch (error) {
     console.error('Transcription error:', error);
     return res.status(500).json({

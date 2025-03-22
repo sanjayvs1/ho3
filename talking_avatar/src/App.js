@@ -357,13 +357,21 @@ function App() {
     setLoading(true);
     try {
       const userText = text;
-      const response = await axios.post(`${host}/groq`, { prompt: text });
+      // Add user's message to chat immediately
+      addMessage(userText);
+      setText(""); // Clear input right away
+
+      // Get AI response
+      const response = await axios.post(`${host}/groq`, { prompt: userText });
       const { response: groqResponse } = response.data;
       if (!groqResponse) throw new Error("No response from chat API");
-      addMessage(userText);
+
+      // Add and speak AI's response
       addMessage(groqResponse, false);
-      setText("");
-      setText(groqResponse);
+      
+      // Set the AI response for speech
+      console.log(groqResponse)
+      setText(groqResponse.response || groqResponse);
       await handleSpeak(true);
     } catch (error) {
       console.error("Chat error:", error);
@@ -373,7 +381,6 @@ function App() {
       setLoading(false);
     }
   };
-
   const startRecording = async () => {
     if (isRecording || loading) return;
     setLoading(true);
@@ -417,7 +424,7 @@ function App() {
             Based on this elderly person's message: "${transcript}"
             Generate ONLY a JSON object with these fields:
             - response: A warm, clear, and simple response (required)
-            - action: One of these values if relevant: "openApp", "call", "sendSMS", "emergency", or null
+            - action: One of these values if relevant: "openApp", "call", "sendSMS", "emergency", or null . For you to do such task among these 4 or more , you just have to set the action to one of these and if you don't have any of these task , then set the action to null . Idenity the message perfectly
             - data: Additional data for the action (e.g., "https://chat.whatsapp.com" for openApp)
             
             If they need:
@@ -638,7 +645,7 @@ function App() {
       }
 
       if (response.status === 200) {
-        addMessage(`Prescription updated successfully and SMS notification sent`, false);
+        addMessage(`Prescription updated successfully and SMS notification scheduled`, false);
         setModalOpen(false);
       } else {
         throw new Error("Failed to update prescription");
@@ -681,9 +688,10 @@ function App() {
             phoneNumber: "+919967463620",
             message: "Take your medication"
           };
+          console.log(smsData)
 
           await axios.post(`${host}/sms/add`, smsData);
-          addMessage("SMS reminder scheduled for 1 minute from now", false);
+          addMessage("SMS reminder flooded for 1 minute from now", false);
           break;
 
         case 'emergency':
@@ -695,7 +703,7 @@ function App() {
               minute: '2-digit'
             }),
             phoneNumber: "+919967463620",
-            message: "EMERGENCY: Please contact emergency services immediately"
+            message: "EMERGENCY: Your parents need help immediately"
           };
 
           await axios.post(`${host}/sms/add`, emergencySmsData);
@@ -881,7 +889,7 @@ function App() {
 
       <div
         ref={chatAreaRef}
-        className="max-h-[40vh] md:max-h-[30vh] overflow-y-auto p-2.5 bg-transparent flex flex-col gap-2 z-10 absolute bottom-[80px] md:bottom-[60px] left-2.5 right-2.5 rounded-lg"
+        className="max-h-[40vh] md:max-h-[30vh] overflow-y-auto p-2.5 pb-20 bg-transparent flex flex-col gap-2 z-10 absolute bottom-[80px] md:bottom-[60px] left-2.5 right-2.5 rounded-lg"
       >
         {messages.map((msg, index) => (
           <div
@@ -894,7 +902,7 @@ function App() {
         ))}
       </div>
 
-      <div className="flex items-center p-3 md:p-4 bg-[rgba(240,242,245,0.98)] border-t-2 border-[#00a884] shadow-[0_-4px_15px_rgba(0,0,0,0.1)] z-10 absolute bottom-0 left-0 right-0">
+      <div className="flex items-center p-3 pt-0 md:p-4 bg-[rgba(240,242,245,0.98)] border-t-2 border-[#00a884] shadow-[0_-4px_15px_rgba(0,0,0,0.1)] z-10 absolute bottom-0 left-0 right-0">
         <input
           className="flex-1 px-3 md:px-4 py-2 md:py-3 border-2 border-[#00a884] rounded-full bg-white mr-2 md:mr-3 text-base md:text-lg outline-none shadow-inner disabled:opacity-50 placeholder:text-gray-400 focus:border-[#008f6f] transition-colors"
           value={text}
