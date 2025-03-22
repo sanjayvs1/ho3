@@ -19,7 +19,7 @@ import * as THREE from "three";
 import axios from "axios";
 import { db } from "./utils/firebaseConfig"; // Adjust path to your firebase.js
 import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaShoppingBag,
   FaRunning,
@@ -31,8 +31,8 @@ import {
   FaTimes,
   FaUser,
   FaSignOutAlt,
-  FaMagic
-} from 'react-icons/fa';
+  FaMagic,
+} from "react-icons/fa";
 
 const _ = require("lodash");
 
@@ -289,7 +289,7 @@ function App() {
   const [editedPrescription, setEditedPrescription] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const [actionButtonState, setActionButtonState] = useState('idle');
+  const [actionButtonState, setActionButtonState] = useState("idle");
   const [actionData, setActionData] = useState(null);
 
   // Close menu when route changes
@@ -368,9 +368,9 @@ function App() {
 
       // Add and speak AI's response
       addMessage(groqResponse, false);
-      
+
       // Set the AI response for speech
-      console.log(groqResponse)
+      console.log(groqResponse);
       setText(groqResponse.response || groqResponse);
       await handleSpeak(true);
     } catch (error) {
@@ -384,42 +384,45 @@ function App() {
   const startRecording = async () => {
     if (isRecording || loading) return;
     setLoading(true);
-    console.debug('Starting recording...');
+    console.debug("Starting recording...");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.debug('Audio stream obtained');
+      console.debug("Audio stream obtained");
 
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 128000
+        mimeType: "audio/webm;codecs=opus",
+        audioBitsPerSecond: 128000,
       });
 
       const chunks = [];
 
       recorder.ondataavailable = (e) => {
-        console.debug('Recording data chunk received:', e.data.size, 'bytes');
+        console.debug("Recording data chunk received:", e.data.size, "bytes");
         chunks.push(e.data);
       };
 
       recorder.onstop = async () => {
-        console.debug('Recording stopped, processing audio...');
-        const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        console.debug("Recording stopped, processing audio...");
+        const audioBlob = new Blob(chunks, { type: "audio/webm;codecs=opus" });
         const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.webm');
+        formData.append("audio", audioBlob, "recording.webm");
 
         try {
           // Step 1: Get transcription
-          const transcribeResponse = await axios.post(`${host}/transcribe`, formData);
+          const transcribeResponse = await axios.post(
+            `${host}/transcribe`,
+            formData
+          );
           const { transcript } = transcribeResponse.data;
 
-          if (!transcript) throw new Error('No transcript received');
+          if (!transcript) throw new Error("No transcript received");
 
           // Step 2: Add user's transcribed message to chat
           addMessage(transcript, true);
 
           // Step 3: Get AI response with structured prompt
-          console.debug('Getting AI response...');
+          console.debug("Getting AI response...");
           const structuredPrompt = `
             Based on this elderly person's message: "${transcript}"
             Generate ONLY a JSON object with these fields:
@@ -436,22 +439,24 @@ function App() {
             Return ONLY the JSON object, no other text.
           `;
 
-          const chatResponse = await axios.post(`${host}/groq`, { prompt: structuredPrompt });
+          const chatResponse = await axios.post(`${host}/groq`, {
+            prompt: structuredPrompt,
+          });
           const { response: groqResponse } = chatResponse.data;
           console.log("groq", groqResponse);
           // Clean and parse the JSON response
           try {
             // Remove ```json and ``` from the response if present
             const cleanJson = groqResponse
-              .replace(/```json\s*/g, '')  // Remove all instances of ```json
-              .replace(/```\s*/g, '')      // Remove all instances of ```
-              .trim();                     // Remove any whitespace
+              .replace(/```json\s*/g, "") // Remove all instances of ```json
+              .replace(/```\s*/g, "") // Remove all instances of ```
+              .trim(); // Remove any whitespace
 
             const parsedResponse = JSON.parse(cleanJson);
-            console.debug('Parsed AI response:', parsedResponse);
+            console.debug("Parsed AI response:", parsedResponse);
 
             if (!parsedResponse || !parsedResponse.response) {
-              throw new Error('Invalid response format');
+              throw new Error("Invalid response format");
             }
 
             // Step 4: Add AI response to messages
@@ -466,40 +471,44 @@ function App() {
               // Automatically trigger the action
               setTimeout(() => handleDynamicAction(), 1000);
             } else {
-              setActionButtonState('idle');
+              setActionButtonState("idle");
             }
 
             // Step 6: Generate and play speech for AI response only
-            console.debug('Generating speech for AI response...');
+            console.debug("Generating speech for AI response...");
             const speechResponse = await makeSpeech(parsedResponse.response);
             const { filename } = speechResponse.data;
 
             setAudioSource(`${host}${filename}`);
             setSpeak(true);
-
           } catch (jsonError) {
-            console.error('JSON parsing error:', jsonError);
+            console.error("JSON parsing error:", jsonError);
             // If JSON parsing fails, treat the entire response as a simple message
-            addMessage("I'm sorry, I encountered an error processing that. Could you please try again?", false);
-            setActionButtonState('idle');
+            addMessage(
+              "I'm sorry, I encountered an error processing that. Could you please try again?",
+              false
+            );
+            setActionButtonState("idle");
             setSpeak(false);
           }
-
         } catch (err) {
-          console.error('Processing error:', err);
-          addMessage("I'm sorry, I couldn't process your message. Please try again.", false);
+          console.error("Processing error:", err);
+          addMessage(
+            "I'm sorry, I couldn't process your message. Please try again.",
+            false
+          );
           setSpeak(false);
         } finally {
           setLoading(false);
-          stream.getTracks().forEach(track => {
+          stream.getTracks().forEach((track) => {
             track.stop();
-            console.debug('Audio track stopped:', track.kind);
+            console.debug("Audio track stopped:", track.kind);
           });
         }
       };
 
       recorder.onerror = (err) => {
-        console.error('MediaRecorder error:', err.name, err.message);
+        console.error("MediaRecorder error:", err.name, err.message);
         setIsRecording(false);
         setLoading(false);
         addMessage(`Recording error: ${err.message}`, false);
@@ -507,16 +516,17 @@ function App() {
 
       // Start recording
       recorder.start(10);
-      console.debug('Recording started');
+      console.debug("Recording started");
       setMediaRecorder(recorder);
       setIsRecording(true);
-
     } catch (err) {
-      console.error('Recording initialization error:', err);
+      console.error("Recording initialization error:", err);
       addMessage(
-        `Failed to start recording: ${err.name === 'NotAllowedError' ?
-          'Microphone permission denied' :
-          err.message}`,
+        `Failed to start recording: ${
+          err.name === "NotAllowedError"
+            ? "Microphone permission denied"
+            : err.message
+        }`,
         false
       );
       setLoading(false);
@@ -586,16 +596,16 @@ function App() {
     let minutes = 0;
 
     // Handle different time formats
-    if (timeStr.includes(':')) {
-      const [h, m] = timeStr.split(':').map(Number);
+    if (timeStr.includes(":")) {
+      const [h, m] = timeStr.split(":").map(Number);
       if (!isNaN(h) && !isNaN(m)) {
         hours = h;
         minutes = m;
       }
-    } else if (timeStr.includes('am') || timeStr.includes('pm')) {
+    } else if (timeStr.includes("am") || timeStr.includes("pm")) {
       // Handle 12-hour format
-      const isPM = timeStr.includes('pm');
-      const numStr = timeStr.replace(/[^0-9]/g, '');
+      const isPM = timeStr.includes("pm");
+      const numStr = timeStr.replace(/[^0-9]/g, "");
       hours = parseInt(numStr) || 12;
       if (isPM && hours !== 12) hours += 12;
       if (!isPM && hours === 12) hours = 0;
@@ -613,7 +623,9 @@ function App() {
     minutes = Math.min(59, Math.max(0, minutes));
 
     // Format as 24-hour time
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const handleTimeChange = (index, value) => {
@@ -633,19 +645,25 @@ function App() {
       );
 
       // Send SMS notification for the first treatment detail
-      if (editedPrescription.patientInfo.treatmentDetails && editedPrescription.patientInfo.treatmentDetails.length > 0) {
+      if (
+        editedPrescription.patientInfo.treatmentDetails &&
+        editedPrescription.patientInfo.treatmentDetails.length > 0
+      ) {
         const treatment = editedPrescription.patientInfo.treatmentDetails[0];
         const smsData = {
           time: treatment.timing,
           phoneNumber: "+919967463620",
-          message: `Take your medication: ${treatment.medication}`
+          message: `Take your medication: ${treatment.medication}`,
         };
 
         await axios.post(`${host}/sms/add`, smsData);
       }
 
       if (response.status === 200) {
-        addMessage(`Prescription updated successfully and SMS notification scheduled`, false);
+        addMessage(
+          `Prescription updated successfully and SMS notification scheduled`,
+          false
+        );
         setModalOpen(false);
       } else {
         throw new Error("Failed to update prescription");
@@ -657,53 +675,53 @@ function App() {
   };
 
   const handleDynamicAction = async () => {
-    if (actionButtonState === 'idle') return;
+    if (actionButtonState === "idle") return;
 
     try {
       switch (actionButtonState) {
-        case 'openApp':
+        case "openApp":
           // Open the stored URL (e.g., WhatsApp)
           if (actionData) {
             window.location.href = actionData;
           }
           break;
 
-        case 'call':
-          window.location.href = 'tel:+919967463620';
+        case "call":
+          window.location.href = "tel:+919967463620";
           break;
 
-        case 'sendSMS':
+        case "sendSMS":
           // Get current time and add 1 minute
           const now = new Date();
           const futureTime = new Date(now.getTime() + 60000); // Add 1 minute
-          const formattedTime = futureTime.toLocaleTimeString('en-US', {
+          const formattedTime = futureTime.toLocaleTimeString("en-US", {
             hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
+            hour: "2-digit",
+            minute: "2-digit",
           });
 
           // Send SMS with medication reminder
           const smsData = {
             time: formattedTime,
             phoneNumber: "+919967463620",
-            message: "Take your medication"
+            message: "Take your medication",
           };
-          console.log(smsData)
+          console.log(smsData);
 
           await axios.post(`${host}/sms/add`, smsData);
           addMessage("SMS reminder flooded for 1 minute from now", false);
           break;
 
-        case 'emergency':
+        case "emergency":
           // Send emergency SMS
           const emergencySmsData = {
-            time: new Date().toLocaleTimeString('en-US', {
+            time: new Date().toLocaleTimeString("en-US", {
               hour12: false,
-              hour: '2-digit',
-              minute: '2-digit'
+              hour: "2-digit",
+              minute: "2-digit",
             }),
             phoneNumber: "+919967463620",
-            message: "EMERGENCY: Your parents need help immediately"
+            message: "EMERGENCY: Your parents need help immediately",
           };
 
           await axios.post(`${host}/sms/add`, emergencySmsData);
@@ -728,16 +746,29 @@ function App() {
         aria-label="Toggle Menu"
       >
         <div className="w-6 h-6 flex flex-col justify-around">
-          <span className={`block w-full h-0.5 bg-[#00a884] transform transition-all duration-300 ${isMenuOpen ? 'rotate-45 translate-y-2.5' : ''}`} />
-          <span className={`block w-full h-0.5 bg-[#00a884] transition-all duration-300 ${isMenuOpen ? 'opacity-0' : ''}`} />
-          <span className={`block w-full h-0.5 bg-[#00a884] transform transition-all duration-300 ${isMenuOpen ? '-rotate-45 -translate-y-2.5' : ''}`} />
+          <span
+            className={`block w-full h-0.5 bg-[#00a884] transform transition-all duration-300 ${
+              isMenuOpen ? "rotate-45 translate-y-2.5" : ""
+            }`}
+          />
+          <span
+            className={`block w-full h-0.5 bg-[#00a884] transition-all duration-300 ${
+              isMenuOpen ? "opacity-0" : ""
+            }`}
+          />
+          <span
+            className={`block w-full h-0.5 bg-[#00a884] transform transition-all duration-300 ${
+              isMenuOpen ? "-rotate-45 -translate-y-2.5" : ""
+            }`}
+          />
         </div>
       </button>
 
       {/* Slide-out Menu */}
       <div
-        className={`fixed inset-0 z-20 transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        className={`fixed inset-0 z-20 transition-transform duration-300 ease-in-out ${
+          isMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {/* Overlay */}
         <div
@@ -768,7 +799,9 @@ function App() {
                   <FaUser className="text-white text-xl" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-gray-800">My Profile</h3>
+                  <h3 className="text-lg font-medium text-gray-800">
+                    My Profile
+                  </h3>
                   <p className="text-sm text-gray-500">View and edit profile</p>
                 </div>
               </Link>
@@ -778,43 +811,58 @@ function App() {
             <nav className="flex-1 p-4 space-y-3">
               <Link
                 to="/profile"
-                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/profile'
-                  ? 'bg-[#00a884] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
-                  }`}
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
+                  location.pathname === "/profile"
+                    ? "bg-[#00a884] text-white shadow-md"
+                    : "text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]"
+                }`}
               >
                 <FaUser className="mr-3 text-2xl" />
                 Profile
               </Link>
               <Link
                 to="/market"
-                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/market'
-                  ? 'bg-[#00a884] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
-                  }`}
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
+                  location.pathname === "/market"
+                    ? "bg-[#00a884] text-white shadow-md"
+                    : "text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]"
+                }`}
               >
                 <FaShoppingBag className="mr-3 text-2xl" />
                 Market
               </Link>
               <Link
                 to="/exercise"
-                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/exercise'
-                  ? 'bg-[#00a884] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
-                  }`}
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
+                  location.pathname === "/exercise"
+                    ? "bg-[#00a884] text-white shadow-md"
+                    : "text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]"
+                }`}
               >
                 <FaRunning className="mr-3 text-2xl" />
                 Exercise
               </Link>
               <Link
                 to="/community"
-                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${location.pathname === '/community'
-                  ? 'bg-[#00a884] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]'
-                  }`}
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
+                  location.pathname === "/community"
+                    ? "bg-[#00a884] text-white shadow-md"
+                    : "text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]"
+                }`}
               >
                 <FaUsers className="mr-3 text-2xl" />
                 Community
+              </Link>
+              <Link
+                to="/entertainment"
+                className={`flex items-center p-4 rounded-xl text-xl font-medium transition-all duration-200 ${
+                  location.pathname === "/entertainment"
+                    ? "bg-[#00a884] text-white shadow-md"
+                    : "text-gray-700 hover:bg-[#e8f5e9] hover:text-[#00a884]"
+                }`}
+              >
+                <FaTv className="mr-3 text-2xl" />
+                Entertainment
               </Link>
             </nav>
 
@@ -823,15 +871,15 @@ function App() {
               <button
                 className="flex items-center w-full p-4 rounded-xl text-xl font-medium text-red-500 hover:bg-red-50 transition-all duration-200"
                 onClick={() => {
-                  localStorage.removeItem('authToken');
-                  localStorage.removeItem('sessionExpiry');
-                  localStorage.removeItem('userId');
+                  localStorage.removeItem("authToken");
+                  localStorage.removeItem("sessionExpiry");
+                  localStorage.removeItem("userId");
 
                   // Close the menu
                   setIsMenuOpen(false);
 
                   // Navigate to login page
-                  navigate('/login');
+                  navigate("/login");
                 }}
               >
                 <FaSignOutAlt className="mr-3 text-2xl" />
@@ -850,7 +898,7 @@ function App() {
           flex items-center justify-center
           shadow-lg transition-all duration-300
           hover:scale-110 active:scale-95
-          ${actionButtonState !== 'idle' ? 'animate-pulse' : ''}
+          ${actionButtonState !== "idle" ? "animate-pulse" : ""}
           group`}
       >
         <div className="absolute inset-0 rounded-full border-2 border-black animate-ping opacity-75"></div>
@@ -894,8 +942,9 @@ function App() {
         {messages.map((msg, index) => (
           <div
             key={index}
-            className={`max-w-[85%] md:max-w-[80%] p-3 md:p-2 rounded-md text-sm md:text-base leading-relaxed break-words shadow-sm ${msg.isUser ? "bg-[#dcf8c6] self-end" : "bg-[#e3f2fd] self-start"
-              }`}
+            className={`max-w-[85%] md:max-w-[80%] p-3 md:p-2 rounded-md text-sm md:text-base leading-relaxed break-words shadow-sm ${
+              msg.isUser ? "bg-[#dcf8c6] self-end" : "bg-[#e3f2fd] self-start"
+            }`}
           >
             {msg.content}
           </div>
@@ -1213,7 +1262,9 @@ function App() {
                           <input
                             type="time"
                             value={treatment.timing || "12:00"}
-                            onChange={(e) => handleTimeChange(index, e.target.value)}
+                            onChange={(e) =>
+                              handleTimeChange(index, e.target.value)
+                            }
                             className="w-full p-2 border rounded"
                             step="300"
                             min="00:00"
