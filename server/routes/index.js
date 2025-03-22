@@ -12,7 +12,6 @@ const { Groq } = require("groq-sdk");
 
 
 const chatHistory = [];
-const responseCache = new Map(); // Cache for Groq responses
 
 /* GET home page. */
 router.post("/talk", function (req, res, next) {
@@ -137,12 +136,7 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
 
 // Function to get Groq response with caching
 async function getGroqResponse(prompt) {
-  // Check cache first
-  if (responseCache.has(prompt)) {
-    return responseCache.get(prompt);
-  }
-
-  const groq = new Groq({
+const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY
   });
 
@@ -164,8 +158,7 @@ async function getGroqResponse(prompt) {
     });
 
     const response = chatCompletion.choices[0]?.message?.content || "No response generated";
-    // Cache the response
-    responseCache.set(prompt, response);
+
     return response;
   } catch (error) {
     console.error("Error getting Groq response:", error);
